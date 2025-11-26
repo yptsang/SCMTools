@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ABC-XYZ Inventory Analysis Studio</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap 5 JS Bundle (REQUIRED for Collapsibles/Accordions) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- PapaParse for CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <!-- DataTables for professional tables -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .sidebar {
+            background-color: #ffffff;
+            border-right: 1px solid #dee2e6;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 20px;
+            position: fixed;
+            width: 340px;
+            z-index: 1000;
+        }
+        .main-content {
+            margin-left: 340px;
+            padding: 20px;
+        }
+        /* Matrix Styles */
+        .matrix-container {
+            display: grid;
+            grid-template-columns: auto 1fr 1fr 1fr;
+            grid-template-rows: auto 1fr 1fr 1fr;
+            gap: 10px;
+            height: 500px;
+            margin-bottom: 20px;
+        }
+        .matrix-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #495057;
+        }
+        .matrix-cell {
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 2px solid transparent;
+            position: relative;
+        }
+        .matrix-cell:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            z-index: 10;
+            border-color: #0d6efd;
+        }
+        .matrix-cell.active {
+            border-color: #000;
+            transform: scale(1.02);
+        }
+        .cell-title { font-size: 1.5rem; font-weight: 800; opacity: 0.3; position: absolute; top: 5px; right: 10px; }
+        .cell-count { font-size: 2rem; font-weight: bold; }
+        .cell-desc { font-size: 0.85rem; opacity: 0.8; }
+        
+        /* Color Coding */
+        .bg-green-light { background-color: #d1e7dd; color: #0f5132; }
+        .bg-green-mid { background-color: #a3cfbb; color: #0f5132; }
+        .bg-yellow-light { background-color: #fff3cd; color: #664d03; }
+        .bg-yellow-mid { background-color: #ffe69c; color: #664d03; }
+        .bg-red-light { background-color: #f8d7da; color: #842029; }
+        .bg-red-mid { background-color: #f1aeb5; color: #842029; }
+        
+        .param-group {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+        
+        @media (max-width: 992px) {
+            .sidebar { width: 100%; height: auto; position: relative; border-right: none; }
+            .main-content { margin-left: 0; }
+            .matrix-container { height: auto; min-height: 400px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar Controls -->
+<div class="sidebar">
+    <h4 class="mb-4 fw-bold text-primary">ABC-XYZ Studio</h4>
+    
+    <!-- File Uploads -->
+    <div class="mb-4">
+        <label class="form-label fw-bold">1. Data Sources</label>
+        
+        <div class="mb-2">
+            <label class="small text-muted">File A: SKU & Value (Cost/Rev)</label>
+            <input type="file" class="form-control form-control-sm" id="fileValue" accept=".csv">
+        </div>
+        
+        <div class="mb-3">
+            <label class="small text-muted">File B: SKU & Demand History</label>
+            <input type="file" class="form-control form-control-sm" id="fileDemand" accept=".csv">
+        </div>
+
+        <button class="btn btn-outline-secondary btn-sm w-100" id="btnReset">Reset to Demo Data</button>
+        <div id="fileStatus" class="mt-2 small text-danger"></div>
+    </div>
+
+    <!-- Parameters -->
+    <div class="mb-4">
+        <label class="form-label fw-bold">2. Classification Logic</label>
+        
+        <div class="param-group">
+            <label class="small fw-bold">ABC Thresholds (Cumulative %)</label>
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="small">A limit:</span>
+                <input type="number" class="form-control form-control-sm w-50" id="param-a" value="80" min="1" max="99">
+            </div>
+            <div class="d-flex align-items-center justify-content-between">
+                <span class="small">B limit:</span>
+                <input type="number" class="form-control form-control-sm w-50" id="param-b" value="95" min="1" max="99">
+            </div>
+            <small class="text-muted" style="font-size: 0.75rem;">C is the remainder.</small>
+        </div>
+
+        <div class="param-group">
+            <label class="small fw-bold">XYZ Thresholds (CV)</label>
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="small">X limit (≤):</span>
+                <input type="number" class="form-control form-control-sm w-50" id="param-x" value="0.5" step="0.1">
+            </div>
+            <div class="d-flex align-items-center justify-content-between">
+                <span class="small">Y limit (≤):</span>
+                <input type="number" class="form-control form-control-sm w-50" id="param-y" value="1.0" step="0.1">
+            </div>
+            <small class="text-muted" style="font-size: 0.75rem;">CV = StdDev / Mean.</small>
+        </div>
+
+        <button class="btn btn-primary w-100" id="btnRun">Run Analysis</button>
+    </div>
+    
+    <div class="alert alert-info small">
+        <strong>Logic:</strong><br>
+        <strong>ABC:</strong> Importance based on value (Pareto).<br>
+        <strong>XYZ:</strong> Uncertainty based on demand variance.
+    </div>
+    <a class="btn btn-outline-secondary btn-sm w-100" href="../index.html">Back to Home Page</a>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+    <div class="container-fluid">
+        
+        <!-- Header -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <h2 class="fw-bold">Classification Matrix</h2>
+                <p class="text-muted">Click on any zone in the matrix to view specific SKUs and their statistics.</p>
+            </div>
+        </div>
+
+        <!-- Matrix Visualization -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="matrix-container">
+                    <!-- Row 1: Headers -->
+                    <div></div> <!-- Empty corner -->
+                    <div class="matrix-header">X<br><small class="fw-normal text-muted">Low Variance</small></div>
+                    <div class="matrix-header">Y<br><small class="fw-normal text-muted">Med Variance</small></div>
+                    <div class="matrix-header">Z<br><small class="fw-normal text-muted">High Variance</small></div>
+
+                    <!-- Row 2: A -->
+                    <div class="matrix-header flex-column">
+                        <span>A</span>
+                        <small class="fw-normal text-muted">High Value</small>
+                    </div>
+                    <div class="matrix-cell bg-green-mid" id="cell-AX" onclick="filterTable('AX')">
+                        <span class="cell-title">AX</span>
+                        <span class="cell-count" id="count-AX">0</span>
+                        <span class="cell-desc">SKUs</span>
+                    </div>
+                    <div class="matrix-cell bg-green-light" id="cell-AY" onclick="filterTable('AY')">
+                        <span class="cell-title">AY</span>
+                        <span class="cell-count" id="count-AY">0</span>
+                        <span class="cell-desc">SKUs</span>
+                    </div>
+                    <div class="matrix-cell bg-yellow-light" id="cell-AZ" onclick="filterTable('AZ')">
+                        <span class="cell-title">AZ</span>
+                        <span class="cell-count" id="count-AZ">0</span>
+                        <span class="cell-desc">SKUs</span>
+                    </div>
+
+                    <!-- Row 3: B -->
+                    <div class="matrix-header flex-column">
+                        <span>B</span>
+                        <small class="fw-normal text-muted">Med Value</small>
+                    </div>
+                    <div class="matrix-cell bg-green-light" id="cell-BX" onclick="filterTable('BX')">
+                        <span class="cell-title">BX</span>
+                        <span class="cell-count" id="count-BX">0</span>
+                        <span class="cell-desc">SKUs</span>
+                    </div>
+                    <div class="matrix-cell bg-yellow-light" id="cell-BY" onclick="filterTable('BY')">
+                        <span class="cell-title">BY</span>
+                        <span class="cell-count" id="count-BY">0</span>
+                        <span class="cell-desc">SKUs</span>
+                    </div>
+                    <div class="matrix-cell bg-yellow-mid" id="cell-BZ" onclick="filterTable('BZ')">
+                        <span class="cell-title">BZ</span>
+                        <span class="cell-count" id="count-BZ">0</span>
+                        <span class="cell-desc">SKUs</span>
+                    </div>
+
+                    <!-- Row 4: C -->
+                    <div class="matrix-header flex-column">
+                        <span>C</span>
+                        <small class="fw-normal text-muted">Low Value</small>
+                    </div>
+                    <div class="matrix-cell bg-yellow-light" id="cell-CX" onclick="filterTable('CX')">
+                        <span class="cell-title">CX</span>
+                        <span class="cell-count" id="count-CX">0</span>
+                        <span class="cell-desc">SKUs</span>
+                    </div>
+                    <div class="matrix-cell bg-yellow-mid" id="cell-CY" onclick="filterTable('CY')">
+                        <span class="cell-title">CY</span>
+                        <span class="cell-count" id="count-CY">0</span>
+                        <span class="cell-desc">SKUs</span>
+                    </div>
+                    <div class="matrix-cell bg-red-light" id="cell-CZ" onclick="filterTable('CZ')">
+                        <span class="cell-title">CZ</span>
+                        <span class="cell-count" id="count-CZ">0</span>
+                        <span class="cell-desc">SKUs</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Drill Down Table -->
+        <div class="card shadow-sm mb-4" id="detailSection" style="display:none;">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                <span id="tableTitle">Details</span>
+                <button class="btn btn-sm btn-outline-secondary" onclick="closeTable()">Close</button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="skuTable" class="table table-striped table-hover w-100">
+                        <thead>
+                            <tr>
+                                <th>SKU ID</th>
+                                <th>Class</th>
+                                <th>Value ($)</th>
+                                <th>Cum. %</th>
+                                <th>Mean Demand</th>
+                                <th>Std Dev</th>
+                                <th>CV</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logic Explanations (Collapsible) -->
+        <div class="accordion shadow-sm mb-5" id="accordionLogic">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingOne">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                        <strong>ABC Analysis Logic</strong>
+                    </button>
+                </h2>
+                <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#accordionLogic">
+                    <div class="accordion-body">
+                        <p>ABC analysis categorizes inventory based on the Pareto Principle (80/20 rule) applied to the consumption value (Unit Cost × Annual Demand).</p>
+                        <ul>
+                            <li><strong>Class A:</strong> Items accounting for the top <span id="lbl-a">80</span>% of total value. Requires strict control and accurate forecasting.</li>
+                            <li><strong>Class B:</strong> Items accounting for the next <span id="lbl-b">15</span>% (up to <span id="lbl-b-cum">95</span>%). Requires moderate control.</li>
+                            <li><strong>Class C:</strong> The remaining items (bottom 5% value). Simple control mechanisms (e.g., Two-bin system).</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingTwo">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                        <strong>XYZ Analysis Logic</strong>
+                    </button>
+                </h2>
+                <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionLogic">
+                    <div class="accordion-body">
+                        <p>XYZ analysis categorizes items based on the variability of their demand, measured by the Coefficient of Variation (CV = Standard Deviation / Mean).</p>
+                        <ul>
+                            <li><strong>Class X:</strong> Very stable demand (CV ≤ <span id="lbl-x">0.5</span>). High forecast accuracy possible. Easy to manage.</li>
+                            <li><strong>Class Y:</strong> Moderate variability (<span id="lbl-x2">0.5</span> < CV ≤ <span id="lbl-y">1.0</span>). Forecast accuracy fluctuates. Safety stock needed.</li>
+                            <li><strong>Class Z:</strong> High variability (CV > <span id="lbl-y2">1.0</span>). Difficult to forecast. Consider Make-to-Order or high safety stock.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+/**
+ * ------------------------------------------------------------------
+ * 1. STATE & DATA MANAGEMENT
+ * ------------------------------------------------------------------
+ */
+let appData = []; // Holds the merged SKU objects
+let dataTableInstance = null;
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    generateDemoData(); // Start with demo data
+    updateLogicLabels();
+});
+
+// Update text in accordion based on inputs
+function updateLogicLabels() {
+    const a = document.getElementById('param-a').value;
+    const b = document.getElementById('param-b').value;
+    const x = document.getElementById('param-x').value;
+    const y = document.getElementById('param-y').value;
+
+    document.getElementById('lbl-a').innerText = a;
+    document.getElementById('lbl-b').innerText = (b - a);
+    document.getElementById('lbl-b-cum').innerText = b;
+    
+    document.getElementById('lbl-x').innerText = x;
+    document.getElementById('lbl-x2').innerText = x;
+    document.getElementById('lbl-y').innerText = y;
+    document.getElementById('lbl-y2').innerText = y;
+}
+
+/**
+ * ------------------------------------------------------------------
+ * 2. DATA GENERATION & PARSING
+ * ------------------------------------------------------------------
+ */
+
+function generateDemoData() {
+    const skus = [];
+    const n = 10;
+    
+    for (let i = 1; i <= n; i++) {
+        const skuId = `SKU-${String(i).padStart(3, '0')}`;
+        
+        // Generate varied Value (Pareto-like)
+        // First few high value, rest low
+        let value = i <= 2 ? Math.random() * 50000 + 50000 : Math.random() * 5000 + 100;
+        
+        // Generate Demand History (52 weeks)
+        // Vary variance to get X, Y, Z
+        const demand = [];
+        let mean = Math.floor(Math.random() * 100) + 20;
+        let varianceFactor = 0.1; // Default X
+        
+        if (i % 3 === 0) varianceFactor = 0.6; // Y
+        if (i % 3 === 1) varianceFactor = 1.5; // Z
+        
+        for(let w=0; w<52; w++) {
+            // Random normal-ish
+            let val = mean + (Math.random() - 0.5) * 2 * (mean * varianceFactor);
+            demand.push(Math.max(0, Math.round(val)));
+        }
+
+        skus.push({
+            id: skuId,
+            value: parseFloat(value.toFixed(2)),
+            demand: demand
+        });
+    }
+    
+    processData(skus);
+    document.getElementById('fileStatus').innerText = "Using Demo Data (10 SKUs)";
+}
+
+// Handle File Uploads and Merge
+document.getElementById('btnRun').addEventListener('click', async () => {
+    const fileVal = document.getElementById('fileValue').files[0];
+    const fileDem = document.getElementById('fileDemand').files[0];
+
+    // If no files, use demo
+    if (!fileVal && !fileDem) {
+        generateDemoData();
+        return;
+    }
+
+    // Validation: Must have both if uploading
+    if ((fileVal && !fileDem) || (!fileVal && fileDem)) {
+        alert("Please upload both files (Value & Demand) or clear both to use Demo data.");
+        return;
+    }
+
+    // Parse Both
+    try {
+        const valData = await parseCSV(fileVal);
+        const demData = await parseCSV(fileDem);
+        
+        // Merge and Validate
+        const merged = mergeDatasets(valData, demData);
+        if (merged) {
+            processData(merged);
+            document.getElementById('fileStatus').className = "mt-2 small text-success";
+            document.getElementById('fileStatus').innerText = `Successfully loaded ${merged.length} SKUs.`;
+        }
+    } catch (err) {
+        alert(err.message);
+    }
+});
+
+function parseCSV(file) {
+    return new Promise((resolve, reject) => {
+        Papa.parse(file, {
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            complete: (results) => resolve(results.data),
+            error: (err) => reject(err)
+        });
+    });
+}
+
+function mergeDatasets(valRows, demRows) {
+    // Assumption: Row 0 is header. 
+    // Val File: Col 0 = SKU, Col 1 = Value
+    // Dem File: Col 0 = SKU, Col 1...N = Demand
+    
+    const valMap = new Map();
+    // Skip header (idx 0)
+    for (let i = 1; i < valRows.length; i++) {
+        const row = valRows[i];
+        if(row.length >= 2) {
+            valMap.set(String(row[0]).trim(), row[1]);
+        }
+    }
+
+    const demMap = new Map();
+    for (let i = 1; i < demRows.length; i++) {
+        const row = demRows[i];
+        if(row.length >= 2) {
+            // Demand is slice from index 1 to end
+            const history = row.slice(1).filter(n => typeof n === 'number');
+            demMap.set(String(row[0]).trim(), history);
+        }
+    }
+
+    // Validation: Compare Keys
+    const valKeys = Array.from(valMap.keys());
+    const demKeys = Array.from(demMap.keys());
+
+    // Simple check: counts
+    if (valKeys.length !== demKeys.length) {
+        const confirmProceed = confirm(`Mismatch in SKU counts.\nFile A: ${valKeys.length} SKUs\nFile B: ${demKeys.length} SKUs.\n\nProceed with intersection (only matching SKUs)?`);
+        if (!confirmProceed) return null;
+    }
+
+    const merged = [];
+    valMap.forEach((value, sku) => {
+        if (demMap.has(sku)) {
+            merged.push({
+                id: sku,
+                value: value,
+                demand: demMap.get(sku)
+            });
+        }
+    });
+
+    if (merged.length === 0) throw new Error("No matching SKUs found between the two files.");
+    return merged;
+}
+
+/**
+ * ------------------------------------------------------------------
+ * 3. ANALYSIS LOGIC
+ * ------------------------------------------------------------------
+ */
+
+function processData(skuList) {
+    updateLogicLabels();
+    
+    // Parameters
+    const limitA = parseFloat(document.getElementById('param-a').value) / 100;
+    const limitB = parseFloat(document.getElementById('param-b').value) / 100;
+    const limitX = parseFloat(document.getElementById('param-x').value);
+    const limitY = parseFloat(document.getElementById('param-y').value);
+
+    // 1. ABC Calculation
+    // Sort by Value Descending
+    skuList.sort((a, b) => b.value - a.value);
+    
+    const totalValue = skuList.reduce((sum, item) => sum + item.value, 0);
+    let cumValue = 0;
+
+    skuList.forEach(item => {
+        cumValue += item.value;
+        const cumPerc = cumValue / totalValue;
+        item.cumPerc = cumPerc;
+
+        if (cumPerc <= limitA) item.abc = 'A';
+        else if (cumPerc <= limitB) item.abc = 'B';
+        else item.abc = 'C';
+    });
+
+    // 2. XYZ Calculation
+    skuList.forEach(item => {
+        const n = item.demand.length;
+        if (n === 0) {
+            item.mean = 0; item.std = 0; item.cv = 0; item.xyz = 'X';
+            return;
+        }
+
+        const mean = item.demand.reduce((a,b)=>a+b, 0) / n;
+        const variance = item.demand.reduce((a,b) => a + Math.pow(b - mean, 2), 0) / n;
+        const std = Math.sqrt(variance);
+        // Handle div by zero
+        const cv = mean === 0 ? 0 : std / mean;
+
+        item.mean = mean;
+        item.std = std;
+        item.cv = cv;
+
+        if (cv <= limitX) item.xyz = 'X';
+        else if (cv <= limitY) item.xyz = 'Y';
+        else item.xyz = 'Z';
+
+        item.class = item.abc + item.xyz; // e.g., "AX"
+    });
+
+    appData = skuList;
+    updateMatrix();
+    
+    // Hide table if open
+    document.getElementById('detailSection').style.display = 'none';
+}
+
+/**
+ * ------------------------------------------------------------------
+ * 4. VISUALIZATION & INTERACTION
+ * ------------------------------------------------------------------
+ */
+
+function updateMatrix() {
+    const counts = {
+        'AX':0, 'AY':0, 'AZ':0,
+        'BX':0, 'BY':0, 'BZ':0,
+        'CX':0, 'CY':0, 'CZ':0
+    };
+
+    appData.forEach(item => {
+        if(counts[item.class] !== undefined) counts[item.class]++;
+    });
+
+    // Update DOM
+    for (const [key, val] of Object.entries(counts)) {
+        document.getElementById(`count-${key}`).innerText = val;
+    }
+}
+
+function filterTable(category) {
+    // Highlight cell
+    document.querySelectorAll('.matrix-cell').forEach(el => el.classList.remove('active'));
+    document.getElementById(`cell-${category}`).classList.add('active');
+
+    // Filter Data
+    const filtered = appData.filter(item => item.class === category);
+
+    // Show Section
+    document.getElementById('detailSection').style.display = 'block';
+    document.getElementById('tableTitle').innerText = `Details: Class ${category} (${filtered.length} SKUs)`;
+    
+    // Scroll to table
+    document.getElementById('detailSection').scrollIntoView({ behavior: 'smooth' });
+
+    // Populate DataTable
+    if (dataTableInstance) {
+        dataTableInstance.destroy();
+    }
+
+    const tableBody = document.querySelector('#skuTable tbody');
+    tableBody.innerHTML = '';
+
+    filtered.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${item.id}</td>
+            <td><span class="badge bg-secondary">${item.class}</span></td>
+            <td>${item.value.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+            <td>${(item.cumPerc * 100).toFixed(2)}%</td>
+            <td>${item.mean.toFixed(2)}</td>
+            <td>${item.std.toFixed(2)}</td>
+            <td>${item.cv.toFixed(2)}</td>
+        `;
+        tableBody.appendChild(tr);
+    });
+
+    dataTableInstance = $('#skuTable').DataTable({
+        pageLength: 10,
+        lengthMenu: [5, 10, 25, 50],
+        order: [[2, 'desc']] // Sort by Value by default
+    });
+}
+
+function closeTable() {
+    document.getElementById('detailSection').style.display = 'none';
+    document.querySelectorAll('.matrix-cell').forEach(el => el.classList.remove('active'));
+}
+
+document.getElementById('btnReset').addEventListener('click', () => {
+    document.getElementById('fileValue').value = '';
+    document.getElementById('fileDemand').value = '';
+    document.getElementById('param-a').value = 80;
+    document.getElementById('param-b').value = 95;
+    document.getElementById('param-x').value = 0.5;
+    document.getElementById('param-y').value = 1.0;
+    document.getElementById('fileStatus').innerText = "";
+    closeTable();
+    generateDemoData();
+});
+
+</script>
+</body>
+</html>

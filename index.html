@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCM Analytics Hub - Home</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+            color: white;
+            padding: 60px 0;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* Tool Cards */
+        .tool-card {
+            border: none;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            height: 100%;
+            text-decoration: none; /* Remove underline from links */
+            color: inherit;
+            display: block;
+            background: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tool-card .card-body {
+            padding: 30px;
+            text-align: center;
+        }
+
+        .icon-wrapper {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #0d6efd;
+        }
+
+        /* State: Locked */
+        .tool-card.locked {
+            opacity: 0.6;
+            cursor: not-allowed;
+            filter: grayscale(100%);
+            pointer-events: none; /* Prevents clicking */
+        }
+
+        .tool-card.locked::after {
+            content: "\F47F"; /* Bootstrap Icon Lock */
+            font-family: "bootstrap-icons";
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 1.5rem;
+            color: #6c757d;
+        }
+
+        /* State: Unlocked / Hover */
+        .tool-card:not(.locked):hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+            border-bottom: 4px solid #0d6efd;
+        }
+
+        .tool-card:not(.locked) .icon-wrapper {
+            transform: scale(1.1);
+            transition: transform 0.3s;
+        }
+
+        /* Login Box */
+        .auth-container {
+            max-width: 400px;
+            margin: 0 auto 50px auto;
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .footer {
+            margin-top: auto;
+            padding: 20px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hero Header -->
+    <div class="hero-section text-center">
+        <div class="container">
+            <h1 class="display-4 fw-bold">Supply Chain Planning Tools</h1>
+            <div class="mt-4">
+                <span class="badge bg-light text-primary fs-6 px-3 py-2 rounded-pill">
+                    <i class="bi bi-person-circle me-2"></i>Welcome, Tony!
+                </span>
+            </div>
+            <p class="mt-3 small opacity-75">Let's work together to make the supply chain great!</p>
+        </div>
+    </div>
+
+    <div class="container">
+        
+        <!-- Authentication Section -->
+        <div id="authSection" class="auth-container text-center">
+            <h5 class="mb-3"><i class="bi bi-shield-lock me-2"></i>Security Check</h5>
+            <p class="text-muted small mb-3">Please enter the team passcode to access the tools.</p>
+            
+            <div class="input-group mb-3">
+                <input type="password" id="passcodeInput" class="form-control" placeholder="Enter Passcode">
+                <button class="btn btn-primary" type="button" id="btnUnlock">Unlock</button>
+            </div>
+            <div id="authMsg" class="small text-danger" style="min-height: 20px;"></div>
+        </div>
+
+        <!-- Success Message (Hidden by default) -->
+        <div id="successSection" class="text-center mb-4" style="display: none;">
+            <div class="alert alert-success d-inline-block px-5">
+                <i class="bi bi-unlock-fill me-2"></i><strong>Access Granted.</strong> Select a tool below.
+            </div>
+        </div>
+
+        <!-- Tools Grid -->
+        <div class="row g-4 justify-content-center">
+            
+            <!-- Tool 1: Demand Forecasting -->
+            <div class="col-md-6 col-lg-4">
+                <!-- 
+                   NOTE: The 'locked' class prevents clicking. 
+                   It is removed via JavaScript when the password is correct. 
+                -->
+                <a href="tools/df.html" class="card tool-card locked shadow-sm" id="tool-1">
+                    <div class="card-body">
+                        <div class="icon-wrapper">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
+                        <h4 class="card-title fw-bold text-primary">Demand Forecasting</h4>
+                        <p class="card-text text-muted">
+                            Analyze historical data, detect trends, and generate future demand projections using statistical models.
+                        </p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Tool 2: ABC-XYZ Analysis -->
+            <div class="col-md-6 col-lg-4">
+                <a href="tools/abc-xyz.html" class="card tool-card locked shadow-sm" id="tool-2">
+                    <div class="card-body">
+                        <div class="icon-wrapper">
+                            <i class="bi bi-grid-3x3-gap-fill"></i>
+                        </div>
+                        <h4 class="card-title fw-bold text-success">ABC-XYZ Studio</h4>
+                        <p class="card-text text-muted">
+                            Segment inventory by Value (ABC) and Volatility (XYZ) to optimize safety stock and service levels.
+                        </p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- 
+                ================================================
+                HOW TO ADD A NEW TOOL:
+                Copy the block below, change the href, icon, title, and description.
+                ================================================
+            -->
+            <!-- Tool 3 (Placeholder / Example) -->
+            <!--
+            <div class="col-md-6 col-lg-4">
+                <a href="network-opt.html" class="card tool-card locked shadow-sm">
+                    <div class="card-body">
+                        <div class="icon-wrapper">
+                            <i class="bi bi-globe-americas"></i>
+                        </div>
+                        <h4 class="card-title fw-bold text-info">Network Design</h4>
+                        <p class="card-text text-muted">
+                            Optimize warehouse locations and transport routes.
+                        </p>
+                    </div>
+                </a>
+            </div>
+            -->
+            <!-- ================================================ -->
+
+        </div>
+    </div>
+
+    <div class="footer">
+        &copy; 2025 Paul Tsang
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Configuration
+        const CORRECT_PASSCODE = "paultsang2025";
+
+        // Elements
+        const btnUnlock = document.getElementById('btnUnlock');
+        const inputPass = document.getElementById('passcodeInput');
+        const msgBox = document.getElementById('authMsg');
+        const authSection = document.getElementById('authSection');
+        const successSection = document.getElementById('successSection');
+        
+        // Function to handle unlock
+        function attemptUnlock() {
+            const entered = inputPass.value;
+
+            if (entered === CORRECT_PASSCODE) {
+                // 1. UI Feedback
+                msgBox.innerText = "";
+                authSection.style.display = 'none'; // Hide login
+                successSection.style.display = 'block'; // Show success
+                
+                // 2. Unlock all cards
+                const cards = document.querySelectorAll('.tool-card');
+                cards.forEach(card => {
+                    card.classList.remove('locked');
+                    // Optional: Add a slight animation
+                    card.classList.add('animate__animated', 'animate__fadeIn');
+                });
+
+            } else {
+                // Error handling
+                msgBox.innerText = "Incorrect passcode. Please try again.";
+                inputPass.classList.add('is-invalid');
+                
+                // Reset error style after animation
+                setTimeout(() => {
+                    inputPass.classList.remove('is-invalid');
+                }, 2000);
+            }
+        }
+
+        // Event Listeners
+        btnUnlock.addEventListener('click', attemptUnlock);
+
+        // Allow pressing "Enter" key
+        inputPass.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                attemptUnlock();
+            }
+        });
+    </script>
+</body>
+</html>

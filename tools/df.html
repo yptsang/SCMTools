@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time-Series Demand Forecasting Studio</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    
+    <!-- PapaParse for CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <!-- Math.js for Matrix operations (ARIMA) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .sidebar {
+            background-color: #ffffff;
+            border-right: 1px solid #dee2e6;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 20px;
+            position: fixed;
+            width: 320px;
+            z-index: 1000;
+        }
+        .main-content {
+            margin-left: 320px;
+            padding: 20px;
+        }
+        .metric-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            padding: 15px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+        }
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #0d6efd;
+        }
+        .metric-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .param-group {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: none; /* Hidden by default */
+        }
+        .spinner-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                border-right: none;
+                border-bottom: 1px solid #dee2e6;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Loading Spinner -->
+<div class="spinner-overlay" id="loadingSpinner">
+    <div class="text-center">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 fw-bold">Training & Forecasting...</p>
+    </div>
+</div>
+
+<!-- Sidebar Controls -->
+<div class="sidebar">
+    <h4 class="mb-4 fw-bold text-primary">Forecasting Studio</h4>
+    
+    <!-- Data Section -->
+    <div class="mb-4">
+        <label class="form-label fw-bold">1. Data Source</label>
+        <input type="file" class="form-control mb-2" id="csvUpload" accept=".csv">
+        <button class="btn btn-outline-secondary btn-sm w-100" id="btnReset">Reset to Demo Data</button>
+        <small class="text-muted d-block mt-1">Demo: 156 weeks (Non-stationary)</small>
+    </div>
+
+    <!-- Horizon Section -->
+    <div class="mb-4">
+        <label class="form-label fw-bold">2. Training Horizon</label>
+        <p class="small text-muted mb-1">Split point for Rolling Forecast</p>
+        <input type="range" class="form-range" id="splitSlider" min="10" max="100" value="70">
+        <div class="d-flex justify-content-between small">
+            <span>Start: <span id="splitVal">0</span></span>
+            <span>Total: <span id="totalPoints">0</span></span>
+        </div>
+    </div>
+
+    <!-- Method Section -->
+    <div class="mb-4">
+        <label class="form-label fw-bold">3. Algorithm</label>
+        <select class="form-select mb-3" id="algoSelect">
+            <option value="ma">Moving Average</option>
+            <option value="es">Exponential Smoothing (Holt)</option>
+            <option value="arima">ARIMA (Simplified)</option>
+            <option value="xgboost">XGBoost (Gradient Boosting)</option>
+        </select>
+
+        <!-- Hyperparameters: MA -->
+        <div id="params-ma" class="param-group">
+            <label class="form-label small">Window Size (Periods)</label>
+            <input type="number" class="form-control form-control-sm" id="ma-window" value="4" min="1">
+        </div>
+
+        <!-- Hyperparameters: ES -->
+        <div id="params-es" class="param-group">
+            <label class="form-label small">Alpha (Level)</label>
+            <input type="number" class="form-control form-control-sm mb-2" id="es-alpha" value="0.3" step="0.1" min="0" max="1">
+            <label class="form-label small">Beta (Trend)</label>
+            <input type="number" class="form-control form-control-sm" id="es-beta" value="0.1" step="0.1" min="0" max="1">
+        </div>
+
+        <!-- Hyperparameters: ARIMA -->
+        <div id="params-arima" class="param-group">
+            <label class="form-label small">AR Order (p)</label>
+            <input type="number" class="form-control form-control-sm mb-2" id="arima-p" value="3" min="1" max="10">
+            <label class="form-label small">Differencing (d)</label>
+            <input type="number" class="form-control form-control-sm" id="arima-d" value="1" min="0" max="2" readonly title="Fixed for demo">
+        </div>
+
+        <!-- Hyperparameters: XGBoost -->
+        <div id="params-xgboost" class="param-group">
+            <label class="form-label small">Estimators (Trees)</label>
+            <input type="number" class="form-control form-control-sm mb-2" id="xgb-est" value="20" min="1" max="100">
+            <label class="form-label small">Max Depth</label>
+            <input type="number" class="form-control form-control-sm mb-2" id="xgb-depth" value="3" min="1" max="10">
+            <label class="form-label small">Learning Rate</label>
+            <input type="number" class="form-control form-control-sm" id="xgb-lr" value="0.1" step="0.05" min="0.01">
+        </div>
+
+        <button class="btn btn-primary w-100" id="btnRun">Run Forecast</button> <br></br>
+        <a class="btn btn-outline-secondary btn-sm w-100" href="../index.html">Back to Home Page</a>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+    <div class="container-fluid">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="fw-bold">Performance Dashboard</h2>
+                <p class="text-muted">Rolling window validation comparing Actual vs. Forecasted Demand.</p>
+            </div>
+        </div>
+
+        <!-- Metrics Row -->
+        <div class="row mb-4 g-3">
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="metric-label">MAE</div>
+                    <div class="metric-value" id="val-mae">-</div>
+                    <small class="text-muted">Mean Absolute Error</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="metric-label">MAPE</div>
+                    <div class="metric-value" id="val-mape">-</div>
+                    <small class="text-muted">Mean Abs. % Error</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="metric-label">RMSE</div>
+                    <div class="metric-value" id="val-rmse">-</div>
+                    <small class="text-muted">Root Mean Sq. Error</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Row -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div id="chartContainer" style="width:100%; height:500px;"></div>
+            </div>
+        </div>
+
+        <!-- Logs / Details -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-bold">
+                Forecast Details
+            </div>
+            <div class="card-body">
+                <p><strong>Methodology:</strong> Walk-Forward Validation.</p>
+                <p>The model trains on data from index <code>0</code> to <code>t-1</code> and predicts <code>t</code>. The window moves one step forward, the actual value of <code>t</code> is added to the training set, and the model predicts <code>t+1</code>.</p>
+                <div class="alert alert-info" id="statusMsg">
+                    Ready to forecast.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * ------------------------------------------------------------------
+ * 1. STATE MANAGEMENT & UTILS
+ * ------------------------------------------------------------------
+ */
+const state = {
+    data: [], // Array of numbers
+    labels: [], // Array of labels (Week 1, Week 2...)
+    splitIndex: 0,
+    forecasts: [],
+    actuals: []
+};
+
+// Generate Demo Data: Non-stationary stochastic discrete demand
+function generateDemoData() {
+    const n = 156; // 3 years of weekly data
+    const data = [];
+    const labels = [];
+    
+    // Base demand + Trend + Seasonality + Noise
+    for (let t = 0; t < n; t++) {
+        const trend = 0.5 * t; 
+        const seasonality = 20 * Math.sin((2 * Math.PI * t) / 52);
+        const noise = generateNormalRandom(0, 10); // Mean 0, SD 10
+        const base = 100;
+        
+        let val = Math.round(base + trend + seasonality + noise);
+        if (val < 0) val = 0; // Demand can't be negative
+        
+        data.push(val);
+        labels.push(`W${t+1}`);
+    }
+    return { data, labels };
+}
+
+// Box-Muller transform for Normal Distribution
+function generateNormalRandom(mean, std) {
+    let u = 0, v = 0;
+    while(u === 0) u = Math.random(); 
+    while(v === 0) v = Math.random();
+    const num = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+    return num * std + mean;
+}
+
+function calculateMetrics(actual, forecast) {
+    let sumAbsError = 0;
+    let sumAbsPercError = 0;
+    let sumSqError = 0;
+    let n = 0;
+
+    for (let i = 0; i < actual.length; i++) {
+        if (actual[i] !== null && forecast[i] !== null) {
+            const err = actual[i] - forecast[i];
+            sumAbsError += Math.abs(err);
+            if (actual[i] !== 0) {
+                sumAbsPercError += Math.abs(err / actual[i]);
+            }
+            sumSqError += (err * err);
+            n++;
+        }
+    }
+
+    if (n === 0) return { mae: 0, mape: 0, rmse: 0 };
+
+    return {
+        mae: (sumAbsError / n).toFixed(2),
+        mape: ((sumAbsPercError / n) * 100).toFixed(2) + '%',
+        rmse: Math.sqrt(sumSqError / n).toFixed(2)
+    };
+}
+
+/**
+ * ------------------------------------------------------------------
+ * 2. FORECASTING ALGORITHMS
+ * ------------------------------------------------------------------
+ */
+
+// 2.1 Moving Average
+function predictMA(history, windowSize) {
+    if (history.length < windowSize) return history[history.length - 1]; // Fallback
+    let sum = 0;
+    for (let i = 1; i <= windowSize; i++) {
+        sum += history[history.length - i];
+    }
+    return sum / windowSize;
+}
+
+// 2.2 Exponential Smoothing (Holt's Linear Trend)
+// We re-fit the whole history to get the current Level and Trend, then forecast 1 step.
+function predictES(history, alpha, beta) {
+    if (history.length < 2) return history[0];
+
+    let level = history[0];
+    let trend = history[1] - history[0];
+
+    for (let i = 1; i < history.length; i++) {
+        const prevLevel = level;
+        const val = history[i];
+        
+        level = alpha * val + (1 - alpha) * (prevLevel + trend);
+        trend = beta * (level - prevLevel) + (1 - beta) * trend;
+    }
+
+    return level + trend;
+}
+
+// 2.3 ARIMA (Simplified: AR(p) on Differenced Data)
+// Step 1: Difference data (d=1). Step 2: OLS Regression on lags. Step 3: Integrate.
+function predictARIMA(history, p) {
+    const n = history.length;
+    if (n < p + 2) return history[n-1];
+
+    // 1. Difference
+    const diff = [];
+    for(let i=1; i<n; i++) diff.push(history[i] - history[i-1]);
+
+    // 2. Prepare Matrices for OLS: Y = X * Beta
+    // We want to predict diff[t] based on diff[t-1]...diff[t-p]
+    const X = [];
+    const Y = [];
+    
+    for (let i = p; i < diff.length; i++) {
+        const row = [1]; // Intercept
+        for (let j = 1; j <= p; j++) {
+            row.push(diff[i - j]);
+        }
+        X.push(row);
+        Y.push(diff[i]);
+    }
+
+    // 3. Solve OLS: Beta = (X'X)^-1 X'Y
+    try {
+        // Using math.js for matrix operations
+        const X_mat = math.matrix(X);
+        const Y_mat = math.matrix(Y);
+        const Xt = math.transpose(X_mat);
+        const XtX = math.multiply(Xt, X_mat);
+        const XtX_inv = math.inv(XtX);
+        const XtY = math.multiply(Xt, Y_mat);
+        const Beta = math.multiply(XtX_inv, XtY).toArray(); // Returns vector [intercept, lag1, lag2...]
+
+        // 4. Forecast next diff
+        let nextDiff = Beta[0]; // Intercept
+        const lastDiffs = diff.slice(-p).reverse(); // Most recent first
+        for(let k=0; k<p; k++) {
+            nextDiff += Beta[k+1] * lastDiffs[k];
+        }
+
+        // 5. Integrate (Add to last actual value)
+        return history[n-1] + nextDiff;
+
+    } catch (e) {
+        console.warn("ARIMA Matrix Singular or Error, falling back to Naive", e);
+        return history[n-1];
+    }
+}
+
+// 2.4 XGBoost (Simplified Gradient Boosting Regressor)
+// Implemented from scratch: Fits Decision Trees to residuals
+class SimpleDecisionTree {
+    constructor(maxDepth = 3, minSamplesSplit = 2) {
+        this.maxDepth = maxDepth;
+        this.minSamplesSplit = minSamplesSplit;
+        this.tree = null;
+    }
+
+    fit(X, y) {
+        this.tree = this._buildTree(X, y, 0);
+    }
+
+    predict(inputs) {
+        return this._predictNode(this.tree, inputs);
+    }
+
+    _buildTree(X, y, depth) {
+        const numSamples = X.length;
+        const numFeatures = X[0].length;
+        
+        // Leaf conditions
+        if (depth >= this.maxDepth || numSamples < this.minSamplesSplit) {
+            const mean = y.reduce((a,b)=>a+b,0) / numSamples;
+            return { isLeaf: true, value: mean };
+        }
+
+        // Find best split
+        let bestSplit = { score: Infinity };
+        
+        // Randomly select features (like RF/GBM usually do, simplified here to all features)
+        for (let featIdx = 0; featIdx < numFeatures; featIdx++) {
+            // Get unique values to split on
+            const values = X.map(row => row[featIdx]);
+            
+            for (let val of values) {
+                const { leftIdx, rightIdx } = this._split(X, featIdx, val);
+                if (leftIdx.length === 0 || rightIdx.length === 0) continue;
+
+                const yLeft = leftIdx.map(i => y[i]);
+                const yRight = rightIdx.map(i => y[i]);
+                
+                const score = this._calculateVariance(yLeft) * yLeft.length + this._calculateVariance(yRight) * yRight.length;
+
+                if (score < bestSplit.score) {
+                    bestSplit = { score, featIdx, threshold: val, leftIdx, rightIdx };
+                }
+            }
+        }
+
+        if (bestSplit.score === Infinity) {
+            return { isLeaf: true, value: y.reduce((a,b)=>a+b,0) / numSamples };
+        }
+
+        // Recursion
+        const leftX = bestSplit.leftIdx.map(i => X[i]);
+        const leftY = bestSplit.leftIdx.map(i => y[i]);
+        const rightX = bestSplit.rightIdx.map(i => X[i]);
+        const rightY = bestSplit.rightIdx.map(i => y[i]);
+
+        return {
+            isLeaf: false,
+            feature: bestSplit.featIdx,
+            threshold: bestSplit.threshold,
+            left: this._buildTree(leftX, leftY, depth + 1),
+            right: this._buildTree(rightX, rightY, depth + 1)
+        };
+    }
+
+    _split(X, feature, threshold) {
+        const leftIdx = [];
+        const rightIdx = [];
+        for (let i = 0; i < X.length; i++) {
+            if (X[i][feature] <= threshold) leftIdx.push(i);
+            else rightIdx.push(i);
+        }
+        return { leftIdx, rightIdx };
+    }
+
+    _calculateVariance(y) {
+        if (y.length === 0) return 0;
+        const mean = y.reduce((a,b)=>a+b,0) / y.length;
+        return y.reduce((a,b) => a + Math.pow(b - mean, 2), 0) / y.length;
+    }
+
+    _predictNode(node, x) {
+        if (node.isLeaf) return node.value;
+        if (x[node.feature] <= node.threshold) return this._predictNode(node.left, x);
+        return this._predictNode(node.right, x);
+    }
+}
+
+class SimpleGBM {
+    constructor(nEstimators=20, learningRate=0.1, maxDepth=3) {
+        this.nEstimators = nEstimators;
+        this.lr = learningRate;
+        this.maxDepth = maxDepth;
+        this.trees = [];
+        this.basePrediction = 0;
+    }
+
+    fit(X, y) {
+        // 1. Initial prediction (Mean)
+        this.basePrediction = y.reduce((a,b)=>a+b,0) / y.length;
+        let residuals = y.map(val => val - this.basePrediction);
+
+        // 2. Train trees on residuals
+        for (let i = 0; i < this.nEstimators; i++) {
+            const tree = new SimpleDecisionTree(this.maxDepth);
+            tree.fit(X, residuals);
+            this.trees.push(tree);
+
+            // Update residuals
+            const predictions = X.map(row => tree.predict(row));
+            residuals = residuals.map((r, idx) => r - (this.lr * predictions[idx]));
+        }
+    }
+
+    predict(X_row) {
+        let pred = this.basePrediction;
+        for (let tree of this.trees) {
+            pred += this.lr * tree.predict(X_row);
+        }
+        return pred;
+    }
+}
+
+function predictXGBoost(history, nEst, lr, depth) {
+    // Feature Engineering: Create lags for supervised learning
+    // We use last 5 lags as features
+    const lags = 5;
+    if (history.length < lags + 5) return history[history.length - 1]; // Not enough data
+
+    const X = [];
+    const y = [];
+
+    for (let i = lags; i < history.length; i++) {
+        const features = [];
+        for (let j = 1; j <= lags; j++) {
+            features.push(history[i - j]);
+        }
+        // Add a simple time index feature to help with trend
+        features.push(i); 
+        X.push(features);
+        y.push(history[i]);
+    }
+
+    // Train Model
+    const gbm = new SimpleGBM(nEst, lr, depth);
+    gbm.fit(X, y);
+
+    // Predict next
+    const nextFeatures = [];
+    for (let j = 0; j < lags; j++) {
+        nextFeatures.push(history[history.length - 1 - j]);
+    }
+    nextFeatures.push(history.length); // Time index
+    
+    return gbm.predict(nextFeatures);
+}
+
+
+/**
+ * ------------------------------------------------------------------
+ * 3. MAIN LOGIC & UI HANDLING
+ * ------------------------------------------------------------------
+ */
+
+function init() {
+    // Load Demo Data
+    const demo = generateDemoData();
+    state.data = demo.data;
+    state.labels = demo.labels;
+    
+    updateSliderRange();
+    renderChart();
+}
+
+function updateSliderRange() {
+    const slider = document.getElementById('splitSlider');
+    const max = state.data.length - 1;
+    const defaultVal = Math.floor(state.data.length * 0.7);
+    
+    slider.max = max;
+    slider.value = defaultVal;
+    
+    document.getElementById('totalPoints').innerText = state.data.length;
+    document.getElementById('splitVal').innerText = defaultVal;
+    state.splitIndex = defaultVal;
+}
+
+// UI Event Listeners
+document.getElementById('splitSlider').addEventListener('input', (e) => {
+    document.getElementById('splitVal').innerText = e.target.value;
+    state.splitIndex = parseInt(e.target.value);
+    // Clear previous forecast visualization
+    state.forecasts = [];
+    renderChart();
+});
+
+document.getElementById('algoSelect').addEventListener('change', (e) => {
+    // Hide all params
+    document.querySelectorAll('.param-group').forEach(el => el.style.display = 'none');
+    // Show selected
+    document.getElementById(`params-${e.target.value}`).style.display = 'block';
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+    document.getElementById('csvUpload').value = '';
+    init();
+    // Reset UI
+    document.getElementById('algoSelect').value = 'ma';
+    document.querySelectorAll('.param-group').forEach(el => el.style.display = 'none');
+    document.getElementById('params-ma').style.display = 'block';
+    document.getElementById('val-mae').innerText = '-';
+    document.getElementById('val-mape').innerText = '-';
+    document.getElementById('val-rmse').innerText = '-';
+    document.getElementById('statusMsg').className = 'alert alert-info';
+    document.getElementById('statusMsg').innerText = 'Reset complete. Ready.';
+});
+
+document.getElementById('csvUpload').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+            const raw = results.data;
+            // Logic to find the data column. Assuming last column if multiple, or first if single.
+            // Also strip headers if string.
+            const newData = [];
+            const newLabels = [];
+            
+            raw.forEach((row, idx) => {
+                // Get last element of row as value
+                let val = row[row.length - 1];
+                if (typeof val === 'number') {
+                    newData.push(val);
+                    newLabels.push(idx + 1);
+                }
+            });
+
+            if (newData.length > 10) {
+                state.data = newData;
+                state.labels = newLabels;
+                updateSliderRange();
+                renderChart();
+                document.getElementById('statusMsg').innerText = `Loaded ${newData.length} rows from CSV.`;
+            } else {
+                alert("Dataset too small or invalid format. Please ensure a column of numbers.");
+            }
+        }
+    });
+});
+
+document.getElementById('btnRun').addEventListener('click', async () => {
+    // Show spinner
+    document.getElementById('loadingSpinner').style.display = 'flex';
+    
+    // Use setTimeout to allow UI to render spinner before heavy JS blocks thread
+    setTimeout(() => {
+        runForecastLogic();
+        document.getElementById('loadingSpinner').style.display = 'none';
+    }, 100);
+});
+
+function runForecastLogic() {
+    const algo = document.getElementById('algoSelect').value;
+    const split = state.splitIndex;
+    const total = state.data.length;
+    
+    const forecasts = new Array(total).fill(null);
+    const actualsSlice = [];
+    const forecastsSlice = [];
+
+    // Rolling Forecast Loop
+    // We start predicting at index 'split'.
+    // To predict index 'i', we use data from 0 to i-1.
+    
+    for (let i = split; i < total; i++) {
+        const history = state.data.slice(0, i);
+        let prediction = 0;
+
+        if (algo === 'ma') {
+            const win = parseInt(document.getElementById('ma-window').value);
+            prediction = predictMA(history, win);
+        } else if (algo === 'es') {
+            const alpha = parseFloat(document.getElementById('es-alpha').value);
+            const beta = parseFloat(document.getElementById('es-beta').value);
+            prediction = predictES(history, alpha, beta);
+        } else if (algo === 'arima') {
+            const p = parseInt(document.getElementById('arima-p').value);
+            prediction = predictARIMA(history, p);
+        } else if (algo === 'xgboost') {
+            const est = parseInt(document.getElementById('xgb-est').value);
+            const lr = parseFloat(document.getElementById('xgb-lr').value);
+            const depth = parseInt(document.getElementById('xgb-depth').value);
+            prediction = predictXGBoost(history, est, lr, depth);
+        }
+
+        // Ensure non-negative for demand
+        prediction = Math.max(0, prediction);
+        forecasts[i] = prediction;
+
+        actualsSlice.push(state.data[i]);
+        forecastsSlice.push(prediction);
+    }
+
+    state.forecasts = forecasts;
+    
+    // Metrics
+    const metrics = calculateMetrics(actualsSlice, forecastsSlice);
+    document.getElementById('val-mae').innerText = metrics.mae;
+    document.getElementById('val-mape').innerText = metrics.mape;
+    document.getElementById('val-rmse').innerText = metrics.rmse;
+
+    document.getElementById('statusMsg').className = 'alert alert-success';
+    document.getElementById('statusMsg').innerText = `Forecasting complete. Processed ${actualsSlice.length} periods using ${algo.toUpperCase()}.`;
+
+    renderChart();
+}
+
+function renderChart() {
+    const traceActual = {
+        x: state.labels,
+        y: state.data,
+        type: 'scatter',
+        mode: 'lines',
+        name: 'Actual Demand',
+        line: { color: '#adb5bd', width: 2 }
+    };
+
+    const traceForecast = {
+        x: state.labels,
+        y: state.forecasts,
+        type: 'scatter',
+        mode: 'lines',
+        name: 'Forecast',
+        line: { color: '#0d6efd', width: 2, dash: 'solid' }
+    };
+
+    // Vertical line for split
+    const splitLine = {
+        type: 'line',
+        x0: state.labels[state.splitIndex],
+        y0: 0,
+        x1: state.labels[state.splitIndex],
+        y1: Math.max(...state.data) * 1.1,
+        line: {
+            color: 'red',
+            width: 2,
+            dash: 'dot'
+        }
+    };
+
+    const layout = {
+        title: 'Demand Forecast vs Actuals',
+        xaxis: { title: 'Time Period' },
+        yaxis: { title: 'Demand (Units)' },
+        shapes: [splitLine],
+        annotations: [{
+            x: state.labels[state.splitIndex],
+            y: Math.max(...state.data),
+            xref: 'x',
+            yref: 'y',
+            text: 'Training Cutoff',
+            showarrow: true,
+            arrowhead: 7,
+            ax: 0,
+            ay: -40
+        }],
+        margin: { t: 40, r: 20, l: 50, b: 40 }
+    };
+
+    // If no forecasts yet, just show actuals
+    const data = state.forecasts.length > 0 ? [traceActual, traceForecast] : [traceActual];
+
+    Plotly.newPlot('chartContainer', data, layout, {responsive: true});
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+    // Show default params
+    document.getElementById('params-ma').style.display = 'block';
+    init();
+});
+
+</script>
+</body>
+</html>
