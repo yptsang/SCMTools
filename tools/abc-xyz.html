@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ABC-XYZ Inventory Analysis Studio</title>
+    <title>Product Risk Matrix Studio</title>
     
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -109,14 +109,14 @@
 
 <!-- Sidebar Controls -->
 <div class="sidebar">
-    <h4 class="mb-4 fw-bold text-primary">ABC-XYZ Studio</h4>
+    <h4 class="mb-4 fw-bold text-primary">Product Risk Matrix</h4>
     
     <!-- File Uploads -->
     <div class="mb-4">
         <label class="form-label fw-bold">1. Data Sources</label>
         
         <div class="mb-2">
-            <label class="small text-muted">File A: SKU & Value (Cost/Rev)</label>
+            <label class="small text-muted">File A: SKU & Frozen Period (days)</label>
             <input type="file" class="form-control form-control-sm" id="fileValue" accept=".csv">
         </div>
         
@@ -131,23 +131,23 @@
 
     <!-- Parameters -->
     <div class="mb-4">
-        <label class="form-label fw-bold">2. Classification Logic</label>
+        <label class="form-label fw-bold">2. Risk Classification Logic</label>
         
         <div class="param-group">
-            <label class="small fw-bold">ABC Thresholds (Cumulative %)</label>
+            <label class="small fw-bold">Temporal Risk Thresholds (Cumulative %)</label>
             <div class="d-flex align-items-center justify-content-between mb-1">
-                <span class="small">A limit:</span>
+                <span class="small">High limit:</span>
                 <input type="number" class="form-control form-control-sm w-50" id="param-a" value="80" min="1" max="99">
             </div>
             <div class="d-flex align-items-center justify-content-between">
-                <span class="small">B limit:</span>
+                <span class="small">Medium limit:</span>
                 <input type="number" class="form-control form-control-sm w-50" id="param-b" value="95" min="1" max="99">
             </div>
-            <small class="text-muted" style="font-size: 0.75rem;">C is the remainder.</small>
+            <small class="text-muted" style="font-size: 0.75rem;">Low is the remainder.</small>
         </div>
 
         <div class="param-group">
-            <label class="small fw-bold">XYZ Thresholds (CV)</label>
+            <label class="small fw-bold">Demand Variability Thresholds (CV)</label>
             <div class="d-flex align-items-center justify-content-between mb-1">
                 <span class="small">X limit (≤):</span>
                 <input type="number" class="form-control form-control-sm w-50" id="param-x" value="0.5" step="0.1">
@@ -164,8 +164,8 @@
     
     <div class="alert alert-info small">
         <strong>Logic:</strong><br>
-        <strong>ABC:</strong> Importance based on value (Pareto).<br>
-        <strong>XYZ:</strong> Uncertainty based on demand variance.
+        <strong>Temporal Risk:</strong> Based on frozen period length (Pareto).<br>
+        <strong>Demand Variability:</strong> Based on demand variance (CV).
     </div>
     <a class="btn btn-outline-secondary btn-sm w-100" href="../index.html">Back to Home Page</a>
 </div>
@@ -177,7 +177,7 @@
         <!-- Header -->
         <div class="row mb-3">
             <div class="col-12">
-                <h2 class="fw-bold">Classification Matrix</h2>
+                <h2 class="fw-bold">Risk Matrix</h2>
                 <p class="text-muted">Click on any zone in the matrix to view specific SKUs and their statistics.</p>
             </div>
         </div>
@@ -192,66 +192,66 @@
                     <div class="matrix-header">Y<br><small class="fw-normal text-muted">Med Variance</small></div>
                     <div class="matrix-header">Z<br><small class="fw-normal text-muted">High Variance</small></div>
 
-                    <!-- Row 2: A -->
+                    <!-- Row 2: High Temporal Risk -->
                     <div class="matrix-header flex-column">
-                        <span>A</span>
-                        <small class="fw-normal text-muted">High Value</small>
+                        <span>High</span>
+                        <small class="fw-normal text-muted">Temporal Risk</small>
                     </div>
-                    <div class="matrix-cell bg-green-mid" id="cell-AX" onclick="filterTable('AX')">
-                        <span class="cell-title">AX</span>
-                        <span class="cell-count" id="count-AX">0</span>
+                    <div class="matrix-cell bg-yellow-mid" id="cell-HX" onclick="filterTable('HX')">
+                        <span class="cell-title">HX</span>
+                        <span class="cell-count" id="count-HX">0</span>
                         <span class="cell-desc">SKUs</span>
                     </div>
-                    <div class="matrix-cell bg-green-light" id="cell-AY" onclick="filterTable('AY')">
-                        <span class="cell-title">AY</span>
-                        <span class="cell-count" id="count-AY">0</span>
+                    <div class="matrix-cell bg-red-light" id="cell-HY" onclick="filterTable('HY')">
+                        <span class="cell-title">HY</span>
+                        <span class="cell-count" id="count-HY">0</span>
                         <span class="cell-desc">SKUs</span>
                     </div>
-                    <div class="matrix-cell bg-yellow-light" id="cell-AZ" onclick="filterTable('AZ')">
-                        <span class="cell-title">AZ</span>
-                        <span class="cell-count" id="count-AZ">0</span>
+                    <div class="matrix-cell bg-red-mid" id="cell-HZ" onclick="filterTable('HZ')">
+                        <span class="cell-title">HZ</span>
+                        <span class="cell-count" id="count-HZ">0</span>
                         <span class="cell-desc">SKUs</span>
                     </div>
 
-                    <!-- Row 3: B -->
+                    <!-- Row 3: Medium Temporal Risk -->
                     <div class="matrix-header flex-column">
-                        <span>B</span>
-                        <small class="fw-normal text-muted">Med Value</small>
+                        <span>Medium</span>
+                        <small class="fw-normal text-muted">Temporal Risk</small>
                     </div>
-                    <div class="matrix-cell bg-green-light" id="cell-BX" onclick="filterTable('BX')">
-                        <span class="cell-title">BX</span>
-                        <span class="cell-count" id="count-BX">0</span>
+                    <div class="matrix-cell bg-yellow-light" id="cell-MX" onclick="filterTable('MX')">
+                        <span class="cell-title">MX</span>
+                        <span class="cell-count" id="count-MX">0</span>
                         <span class="cell-desc">SKUs</span>
                     </div>
-                    <div class="matrix-cell bg-yellow-light" id="cell-BY" onclick="filterTable('BY')">
-                        <span class="cell-title">BY</span>
-                        <span class="cell-count" id="count-BY">0</span>
+                    <div class="matrix-cell bg-yellow-mid" id="cell-MY" onclick="filterTable('MY')">
+                        <span class="cell-title">MY</span>
+                        <span class="cell-count" id="count-MY">0</span>
                         <span class="cell-desc">SKUs</span>
                     </div>
-                    <div class="matrix-cell bg-yellow-mid" id="cell-BZ" onclick="filterTable('BZ')">
-                        <span class="cell-title">BZ</span>
-                        <span class="cell-count" id="count-BZ">0</span>
+                    <div class="matrix-cell bg-red-light" id="cell-MZ" onclick="filterTable('MZ')">
+                        <span class="cell-title">MZ</span>
+                        <span class="cell-count" id="count-MZ">0</span>
                         <span class="cell-desc">SKUs</span>
                     </div>
 
-                    <!-- Row 4: C -->
+                    <!-- Row 4: Low Temporal Risk -->
                     <div class="matrix-header flex-column">
-                        <span>C</span>
-                        <small class="fw-normal text-muted">Low Value</small>
+                        <span>Low</span>
+                        <small class="fw-normal text-muted">Temporal Risk</small>
                     </div>
-                    <div class="matrix-cell bg-yellow-light" id="cell-CX" onclick="filterTable('CX')">
-                        <span class="cell-title">CX</span>
-                        <span class="cell-count" id="count-CX">0</span>
+                    <div class="matrix-cell bg-green-mid" id="cell-LX" onclick="filterTable('LX')">
+                        <span class="cell-title">LX</span>
+                        <span class="cell-count" id="count-LX">0</span>
                         <span class="cell-desc">SKUs</span>
                     </div>
-                    <div class="matrix-cell bg-yellow-mid" id="cell-CY" onclick="filterTable('CY')">
-                        <span class="cell-title">CY</span>
-                        <span class="cell-count" id="count-CY">0</span>
+                    <div class="matrix-cell bg-green-light" id="cell-LY" onclick="filterTable('LY')">
+                        <span class="cell-title">LY</span>
+                        <span class="cell-count" id="count-LY">0</span>
                         <span class="cell-desc">SKUs</span>
                     </div>
-                    <div class="matrix-cell bg-red-light" id="cell-CZ" onclick="filterTable('CZ')">
-                        <span class="cell-title">CZ</span>
-                        <span class="cell-count" id="count-CZ">0</span>
+                    <div class="matrix-cell bg-yellow-light" id="cell-LZ" onclick="filterTable('LZ')">
+                        <span class="cell-title">LZ</span>
+                        <span class="cell-count" id="count-LZ">0</span>
                         <span class="cell-desc">SKUs</span>
                     </div>
                 </div>
@@ -270,8 +270,8 @@
                         <thead>
                             <tr>
                                 <th>SKU ID</th>
-                                <th>Class</th>
-                                <th>Value ($)</th>
+                                <th>Risk Class</th>
+                                <th>Frozen Period (days)</th>
                                 <th>Cum. %</th>
                                 <th>Mean Demand</th>
                                 <th>Std Dev</th>
@@ -289,16 +289,16 @@
             <div class="accordion-item">
                 <h2 class="accordion-header" id="headingOne">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
-                        <strong>ABC Analysis Logic</strong>
+                        <strong>Temporal Risk Logic</strong>
                     </button>
                 </h2>
                 <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#accordionLogic">
                     <div class="accordion-body">
-                        <p>ABC analysis categorizes inventory based on the Pareto Principle (80/20 rule) applied to the consumption value (Unit Cost × Annual Demand).</p>
+                        <p>Temporal risk is categorized using a Pareto-style cumulative percentage based on the frozen period length (in days).</p>
                         <ul>
-                            <li><strong>Class A:</strong> Items accounting for the top <span id="lbl-a">80</span>% of total value. Requires strict control and accurate forecasting.</li>
-                            <li><strong>Class B:</strong> Items accounting for the next <span id="lbl-b">15</span>% (up to <span id="lbl-b-cum">95</span>%). Requires moderate control.</li>
-                            <li><strong>Class C:</strong> The remaining items (bottom 5% value). Simple control mechanisms (e.g., Two-bin system).</li>
+                            <li><strong>High:</strong> Items accounting for the top <span id="lbl-a">80</span>% of total frozen period days. Highest temporal risk.</li>
+                            <li><strong>Medium:</strong> Items accounting for the next <span id="lbl-b">15</span>% (up to <span id="lbl-b-cum">95</span>%). Moderate temporal risk.</li>
+                            <li><strong>Low:</strong> The remaining items (bottom 5% of frozen days). Lowest temporal risk.</li>
                         </ul>
                     </div>
                 </div>
@@ -306,16 +306,16 @@
             <div class="accordion-item">
                 <h2 class="accordion-header" id="headingTwo">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-                        <strong>XYZ Analysis Logic</strong>
+                        <strong>Demand Variability Logic</strong>
                     </button>
                 </h2>
                 <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionLogic">
                     <div class="accordion-body">
-                        <p>XYZ analysis categorizes items based on the variability of their demand, measured by the Coefficient of Variation (CV = Standard Deviation / Mean).</p>
+                        <p>Demand variability is categorized based on the Coefficient of Variation (CV = Standard Deviation / Mean).</p>
                         <ul>
-                            <li><strong>Class X:</strong> Very stable demand (CV ≤ <span id="lbl-x">0.5</span>). High forecast accuracy possible. Easy to manage.</li>
-                            <li><strong>Class Y:</strong> Moderate variability (<span id="lbl-x2">0.5</span> < CV ≤ <span id="lbl-y">1.0</span>). Forecast accuracy fluctuates. Safety stock needed.</li>
-                            <li><strong>Class Z:</strong> High variability (CV > <span id="lbl-y2">1.0</span>). Difficult to forecast. Consider Make-to-Order or high safety stock.</li>
+                            <li><strong>Class X:</strong> Very stable demand (CV ≤ <span id="lbl-x">0.5</span>). High forecast accuracy possible.</li>
+                            <li><strong>Class Y:</strong> Moderate variability (<span id="lbl-x2">0.5</span> < CV ≤ <span id="lbl-y">1.0</span>). Safety stock needed.</li>
+                            <li><strong>Class Z:</strong> High variability (CV > <span id="lbl-y2">1.0</span>). Difficult to forecast.</li>
                         </ul>
                     </div>
                 </div>
@@ -365,17 +365,15 @@ function updateLogicLabels() {
 
 function generateDemoData() {
     const skus = [];
-    const n = 10;
+    const n = 15;
     
     for (let i = 1; i <= n; i++) {
         const skuId = `SKU-${String(i).padStart(3, '0')}`;
         
-        // Generate varied Value (Pareto-like)
-        // First few high value, rest low
-        let value = i <= 2 ? Math.random() * 50000 + 50000 : Math.random() * 5000 + 100;
+        // Generate varied Frozen Period (Pareto-like)
+        let frozenPeriod = i <= 3 ? Math.random() * 500 + 500 : Math.random() * 300 + 20;
         
         // Generate Demand History (52 weeks)
-        // Vary variance to get X, Y, Z
         const demand = [];
         let mean = Math.floor(Math.random() * 100) + 20;
         let varianceFactor = 0.1; // Default X
@@ -384,20 +382,19 @@ function generateDemoData() {
         if (i % 3 === 1) varianceFactor = 1.5; // Z
         
         for(let w=0; w<52; w++) {
-            // Random normal-ish
             let val = mean + (Math.random() - 0.5) * 2 * (mean * varianceFactor);
             demand.push(Math.max(0, Math.round(val)));
         }
 
         skus.push({
             id: skuId,
-            value: parseFloat(value.toFixed(2)),
+            frozen: parseFloat(frozenPeriod.toFixed(2)),
             demand: demand
         });
     }
     
     processData(skus);
-    document.getElementById('fileStatus').innerText = "Using Demo Data (10 SKUs)";
+    document.getElementById('fileStatus').innerText = "Using Demo Data (15 SKUs)";
 }
 
 // Handle File Uploads and Merge
@@ -413,7 +410,7 @@ document.getElementById('btnRun').addEventListener('click', async () => {
 
     // Validation: Must have both if uploading
     if ((fileVal && !fileDem) || (!fileVal && fileDem)) {
-        alert("Please upload both files (Value & Demand) or clear both to use Demo data.");
+        alert("Please upload both files (Frozen Period & Demand) or clear both to use Demo data.");
         return;
     }
 
@@ -447,8 +444,8 @@ function parseCSV(file) {
 
 function mergeDatasets(valRows, demRows) {
     // Assumption: Row 0 is header. 
-    // Val File: Col 0 = SKU, Col 1 = Value
-    // Dem File: Col 0 = SKU, Col 1...N = Demand
+    // Frozen File: Col 0 = SKU, Col 1 = Frozen Period
+    // Demand File: Col 0 = SKU, Col 1...N = Demand
     
     const valMap = new Map();
     // Skip header (idx 0)
@@ -463,7 +460,6 @@ function mergeDatasets(valRows, demRows) {
     for (let i = 1; i < demRows.length; i++) {
         const row = demRows[i];
         if(row.length >= 2) {
-            // Demand is slice from index 1 to end
             const history = row.slice(1).filter(n => typeof n === 'number');
             demMap.set(String(row[0]).trim(), history);
         }
@@ -480,11 +476,11 @@ function mergeDatasets(valRows, demRows) {
     }
 
     const merged = [];
-    valMap.forEach((value, sku) => {
+    valMap.forEach((frozen, sku) => {
         if (demMap.has(sku)) {
             merged.push({
                 id: sku,
-                value: value,
+                frozen: frozen,
                 demand: demMap.get(sku)
             });
         }
@@ -509,36 +505,36 @@ function processData(skuList) {
     const limitX = parseFloat(document.getElementById('param-x').value);
     const limitY = parseFloat(document.getElementById('param-y').value);
 
-    // 1. ABC Calculation
-    // Sort by Value Descending
-    skuList.sort((a, b) => b.value - a.value);
+    // 1. Temporal Risk Calculation (Pareto on Frozen Period)
+    // Sort by Frozen Period Descending
+    skuList.sort((a, b) => b.frozen - a.frozen);
     
-    const totalValue = skuList.reduce((sum, item) => sum + item.value, 0);
-    let cumValue = 0;
+    const totalFrozen = skuList.reduce((sum, item) => sum + item.frozen, 0);
+    let cumFrozen = 0;
 
     skuList.forEach(item => {
-        cumValue += item.value;
-        const cumPerc = cumValue / totalValue;
+        cumFrozen += item.frozen;
+        const cumPerc = cumFrozen / totalFrozen;
         item.cumPerc = cumPerc;
 
-        if (cumPerc <= limitA) item.abc = 'A';
-        else if (cumPerc <= limitB) item.abc = 'B';
-        else item.abc = 'C';
+        if (cumPerc <= limitA) item.temporal = 'H';       // High
+        else if (cumPerc <= limitB) item.temporal = 'M';  // Medium
+        else item.temporal = 'L';                         // Low
     });
 
-    // 2. XYZ Calculation
+    // 2. Demand Variability (XYZ) Calculation
     skuList.forEach(item => {
         const n = item.demand.length;
-        if (n === 0) {
-            item.mean = 0; item.std = 0; item.cv = 0; item.xyz = 'X';
-            return;
-        }
+        let mean = 0;
+        let std = 0;
+        let cv = 0;
 
-        const mean = item.demand.reduce((a,b)=>a+b, 0) / n;
-        const variance = item.demand.reduce((a,b) => a + Math.pow(b - mean, 2), 0) / n;
-        const std = Math.sqrt(variance);
-        // Handle div by zero
-        const cv = mean === 0 ? 0 : std / mean;
+        if (n > 0) {
+            mean = item.demand.reduce((a,b)=>a+b, 0) / n;
+            const variance = item.demand.reduce((a,b) => a + Math.pow(b - mean, 2), 0) / n;
+            std = Math.sqrt(variance);
+            cv = mean === 0 ? 0 : std / mean;
+        }
 
         item.mean = mean;
         item.std = std;
@@ -548,7 +544,7 @@ function processData(skuList) {
         else if (cv <= limitY) item.xyz = 'Y';
         else item.xyz = 'Z';
 
-        item.class = item.abc + item.xyz; // e.g., "AX"
+        item.class = item.temporal + item.xyz; // e.g., "HX"
     });
 
     appData = skuList;
@@ -566,9 +562,9 @@ function processData(skuList) {
 
 function updateMatrix() {
     const counts = {
-        'AX':0, 'AY':0, 'AZ':0,
-        'BX':0, 'BY':0, 'BZ':0,
-        'CX':0, 'CY':0, 'CZ':0
+        'HX':0, 'HY':0, 'HZ':0,
+        'MX':0, 'MY':0, 'MZ':0,
+        'LX':0, 'LY':0, 'LZ':0
     };
 
     appData.forEach(item => {
@@ -609,7 +605,7 @@ function filterTable(category) {
         tr.innerHTML = `
             <td>${item.id}</td>
             <td><span class="badge bg-secondary">${item.class}</span></td>
-            <td>${item.value.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+            <td>${item.frozen.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
             <td>${(item.cumPerc * 100).toFixed(2)}%</td>
             <td>${item.mean.toFixed(2)}</td>
             <td>${item.std.toFixed(2)}</td>
@@ -621,7 +617,7 @@ function filterTable(category) {
     dataTableInstance = $('#skuTable').DataTable({
         pageLength: 10,
         lengthMenu: [5, 10, 25, 50],
-        order: [[2, 'desc']] // Sort by Value by default
+        order: [[2, 'desc']] // Sort by Frozen Period by default
     });
 }
 
