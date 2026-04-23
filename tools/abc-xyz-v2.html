@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Product Risk Matrix Studio</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #f6f7fb;
+    --surface: #ffffff;
+    --border: #e5e7eb;
+    --border-strong: #d1d5db;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --text-subtle: #94a3b8;
+    --primary: #4f46e5;
+    --primary-dark: #4338ca;
+    --primary-soft: #eef2ff;
+    --success: #059669;
+    --success-soft: #ecfdf5;
+    --warning: #d97706;
+    --warning-soft: #fffbeb;
+    --danger: #dc2626;
+    --danger-soft: #fef2f2;
+  }
+  html, body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; }
+  .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+  /* Top app bar */
+  .appbar {
+    background: #ffffff;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand-dot {
+    width: 30px; height: 30px;
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 800; font-size: 15px;
+    box-shadow: 0 2px 8px rgba(79,70,229,0.3);
+  }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+  }
+  .card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-title {
+    font-size: 14px; font-weight: 700; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .card-body { padding: 20px; }
+
+  /* KPI tiles */
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-label { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+  .kpi-value { font-size: 24px; font-weight: 700; color: var(--text); margin-top: 4px; letter-spacing: -0.02em; }
+  .kpi-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .kpi-accent {
+    position: absolute; top: 0; left: 0; width: 3px; height: 100%;
+  }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; }
+  .btn-primary { background: var(--primary); color: white; box-shadow: 0 1px 2px rgba(79,70,229,0.2); }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-ghost { background: transparent; color: var(--text); border-color: var(--border-strong); }
+  .btn-ghost:hover { background: #f9fafb; }
+  .btn-subtle { background: #f3f4f6; color: var(--text); }
+  .btn-subtle:hover { background: #e5e7eb; }
+
+  /* Inputs */
+  .input {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    font-size: 13px;
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,70,229,0.12); }
+  .input-label { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 4px; display: block; }
+  .input-hint  { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  .input-suffix { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--text-muted); pointer-events: none; }
+
+  /* File upload zone */
+  .dropzone {
+    border: 1.5px dashed var(--border-strong);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+    transition: all 0.15s;
+    cursor: pointer;
+    background: #fafbfc;
+  }
+  .dropzone:hover { border-color: var(--primary); background: var(--primary-soft); }
+  .dropzone.loaded { border-color: var(--success); background: var(--success-soft); border-style: solid; }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 1.5; }
+  .badge-success { background: var(--success-soft); color: var(--success); }
+  .badge-warning { background: var(--warning-soft); color: var(--warning); }
+  .badge-danger  { background: var(--danger-soft); color: var(--danger); }
+  .badge-muted   { background: #f3f4f6; color: var(--text-muted); }
+
+  /* Matrix cells */
+  .matrix-cell {
+    transition: transform 0.2s cubic-bezier(.34,1.3,.64,1), box-shadow 0.2s, filter 0.2s;
+    cursor: pointer;
+    border-radius: 10px;
+    min-height: 100px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid transparent;
+  }
+  .matrix-cell:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -4px rgba(15,23,42,0.25);
+    filter: saturate(1.1);
+  }
+  .matrix-cell::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.08) 100%);
+    pointer-events: none;
+  }
+  .matrix-cell .mc-label { position: absolute; top: 8px; left: 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; opacity: 0.85; z-index: 2; }
+  .matrix-cell .mc-count { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; z-index: 2; position: relative; }
+  .matrix-cell .mc-sub { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; z-index: 2; position: relative; }
+  .matrix-cell .mc-pct { position: absolute; bottom: 8px; right: 10px; font-size: 10px; font-weight: 600; opacity: 0.85; z-index: 2; }
+
+  /* Risk color palette: HZ (top-left) highest → LX (bottom-right) lowest. MX matches LY (light green). */
+  .cell-HZ { background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%); color: #fff; }
+  .cell-HY { background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); color: #fff; }
+  .cell-HX { background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); color: #fff; }
+  .cell-MZ { background: linear-gradient(135deg, #ef4444 0%, #f87171 100%); color: #fff; }
+  .cell-MY { background: linear-gradient(135deg, #eab308 0%, #facc15 100%); color: #422006; }
+  .cell-MX { background: linear-gradient(135deg, #86efac 0%, #bbf7d0 100%); color: #14532d; }
+  .cell-LZ { background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); color: #fff; }
+  .cell-LY { background: linear-gradient(135deg, #86efac 0%, #bbf7d0 100%); color: #14532d; }
+  .cell-LX { background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); color: #fff; }
+
+  /* Axis headers for matrix */
+  .axis-header {
+    font-size: 12px; font-weight: 700; color: var(--text);
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .axis-subheader { font-size: 10px; color: var(--text-muted); font-weight: 500; text-transform: none; letter-spacing: 0; margin-top: 2px; }
+
+  /* Pareto chart */
+  .pareto-svg { width: 100%; height: auto; display: block; }
+  .pareto-bar-H { fill: #ef4444; }
+  .pareto-bar-M { fill: #facc15; }
+  .pareto-bar-L { fill: #22c55e; }
+  .pareto-bar { transition: fill-opacity 0.15s; cursor: pointer; }
+  .pareto-bar:hover { fill-opacity: 0.75; }
+  .pareto-line  { fill: none; stroke: #4f46e5; stroke-width: 2.5; }
+  .pareto-threshold-H { stroke: #b91c1c; stroke-dasharray: 6 4; stroke-width: 1.5; fill: none; }
+  .pareto-threshold-M { stroke: #a16207; stroke-dasharray: 6 4; stroke-width: 1.5; fill: none; }
+  .pareto-axis text { font-size: 10.5px; fill: #64748b; font-family: 'Inter', sans-serif; }
+  .pareto-axis line, .pareto-axis path { stroke: #e5e7eb; }
+  .pareto-grid line { stroke: #f1f5f9; }
+  .pareto-zone-band { opacity: 0.06; }
+  .pareto-tooltip {
+    position: absolute; pointer-events: none; z-index: 100;
+    background: #0f172a; color: #fff; padding: 8px 10px; border-radius: 6px;
+    font-size: 11px; box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    opacity: 0; transition: opacity 0.1s;
+    white-space: nowrap;
+  }
+  .pareto-tooltip.show { opacity: 1; }
+  .pareto-tooltip .tt-title { font-weight: 700; font-size: 12px; margin-bottom: 2px; }
+  .pareto-tooltip .tt-row { display: flex; justify-content: space-between; gap: 14px; color: #cbd5e1; }
+  .pareto-tooltip .tt-row b { color: #fff; font-weight: 600; }
+
+  /* Modal */
+  .modal-backdrop { background: rgba(15,23,42,0.55); backdrop-filter: blur(4px); }
+  .modal-card {
+    background: #fff; border-radius: 14px;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35);
+  }
+
+  /* Table */
+  .data-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+  .data-table thead th {
+    text-align: left; padding: 10px 12px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-muted); background: #f9fafb;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer; user-select: none;
+    position: sticky; top: 0;
+  }
+  .data-table thead th:hover { color: var(--text); }
+  .data-table tbody td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+  .data-table tbody tr:hover { background: #fafbfc; }
+  .data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .sort-indicator { opacity: 0.4; margin-left: 4px; font-size: 9px; }
+  .sort-indicator.active { opacity: 1; color: var(--primary); }
+
+  /* Segment bar */
+  .segment-bar {
+    display: flex; height: 8px; border-radius: 999px; overflow: hidden;
+    background: #f1f5f9;
+  }
+  .segment-bar > div { transition: width 0.3s ease; }
+
+  /* Tabs */
+  .tab-btn {
+    padding: 8px 14px; font-size: 13px; font-weight: 600;
+    color: var(--text-muted); border-bottom: 2px solid transparent;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+  /* Animation */
+  @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .animate-in { animation: fadeSlideUp 0.35s ease; }
+
+  @keyframes pulseRing {
+    0% { box-shadow: 0 0 0 0 rgba(79,70,229,0.35); }
+    70% { box-shadow: 0 0 0 8px rgba(79,70,229,0); }
+    100% { box-shadow: 0 0 0 0 rgba(79,70,229,0); }
+  }
+  .pulse-ring { animation: pulseRing 1.5s ease-out infinite; }
+
+  /* Status dot */
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .status-dot.ok { background: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
+  .status-dot.demo { background: #94a3b8; }
+</style>
+</head>
+<body>
+
+<!-- Top App Bar -->
+<header class="appbar sticky top-0 z-40">
+  <div class="max-w-screen-2xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="brand-dot">R</div>
+      <div>
+        <div class="text-sm font-bold leading-tight">SKU Risk Matrix Studio</div>
+        <div class="text-xs text-slate-500 leading-tight">ABC-XYZ Analytics</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <div id="dataStatus" class="hidden md:flex items-center gap-2 text-xs text-slate-600 mr-2 px-3 py-1.5 rounded-md bg-slate-50 border border-slate-200">
+        <span class="status-dot demo"></span>
+        <span id="dataStatusText">Demo dataset · 35 SKUs</span>
+      </div>
+      <button id="exportBtn" class="btn btn-ghost" title="Export current analysis">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Export CSV
+      </button>
+      <button id="runBtnTop" class="btn btn-primary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        Run Analysis
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-screen-2xl mx-auto px-4 md:px-6 py-5">
+
+  <!-- KPI Row -->
+  <section id="kpiRow" class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5"></section>
+
+  <!-- Main split: Config sidebar + Analysis area -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+    <!-- Sidebar -->
+    <aside class="lg:col-span-4 xl:col-span-3 space-y-5">
+
+      <!-- Data Sources -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"></path></svg>
+              Data Sources
+            </div>
+            <div class="card-subtitle">Upload CSV files or use demo data</div>
+          </div>
+        </div>
+        <div class="card-body space-y-3">
+          <div>
+            <label class="input-label flex items-center justify-between">
+              <span>File A · Frozen Period</span>
+              <span id="fileABadge" class="badge badge-muted">Demo</span>
+            </label>
+            <label for="fileA" id="fileADrop" class="dropzone block">
+              <svg class="mx-auto mb-1 text-slate-400" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <div class="text-xs font-semibold text-slate-700" id="fileAName">Drop CSV or click to browse</div>
+              <div class="text-[10px] text-slate-500 mt-0.5">Columns: SKU, LFrozenPeriod</div>
+            </label>
+            <input type="file" id="fileA" accept=".csv" class="hidden" />
+          </div>
+          <div>
+            <label class="input-label flex items-center justify-between">
+              <span>File B · Demand History</span>
+              <span id="fileBBadge" class="badge badge-muted">Demo</span>
+            </label>
+            <label for="fileB" id="fileBDrop" class="dropzone block">
+              <svg class="mx-auto mb-1 text-slate-400" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <div class="text-xs font-semibold text-slate-700" id="fileBName">Drop CSV or click to browse</div>
+              <div class="text-[10px] text-slate-500 mt-0.5">Columns: SKU, Week1..Week52</div>
+            </label>
+            <input type="file" id="fileB" accept=".csv" class="hidden" />
+          </div>
+          <button id="resetBtn" class="btn btn-subtle w-full justify-center">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+            Reset to Demo Data
+          </button>
+        </div>
+      </div>
+
+      <!-- Classification Logic -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              Classification Thresholds
+            </div>
+            <div class="card-subtitle">Tune segmentation boundaries</div>
+          </div>
+        </div>
+        <div class="card-body space-y-4">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Temporal Risk (Pareto %)</span>
+              <span class="badge badge-muted">Cum. %</span>
+            </div>
+            <div class="space-y-2.5">
+              <div>
+                <label class="input-label">High limit</label>
+                <div class="relative">
+                  <input id="highLim" type="number" class="input pr-8" value="20" min="1" max="99" step="1"/>
+                  <span class="input-suffix">%</span>
+                </div>
+              </div>
+              <div>
+                <label class="input-label">Medium limit</label>
+                <div class="relative">
+                  <input id="medLim" type="number" class="input pr-8" value="80" min="2" max="99.9" step="0.5"/>
+                  <span class="input-suffix">%</span>
+                </div>
+              </div>
+              <p class="input-hint">Low = remainder below the Medium limit.</p>
+            </div>
+          </div>
+
+          <div class="border-t border-slate-200 pt-4">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Demand Variability (CV)</span>
+              <span class="badge badge-muted">σ / μ</span>
+            </div>
+            <div class="space-y-2.5">
+              <div>
+                <label class="input-label">X limit (CV ≤)</label>
+                <input id="xLim" type="number" class="input" value="0.5" min="0" step="0.05"/>
+              </div>
+              <div>
+                <label class="input-label">Y limit (CV ≤)</label>
+                <input id="yLim" type="number" class="input" value="1.0" min="0" step="0.05"/>
+              </div>
+              <p class="input-hint">Z = everything above the Y limit.</p>
+            </div>
+          </div>
+
+          <button id="runBtn" class="btn btn-primary w-full justify-center">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            Run Analysis
+          </button>
+        </div>
+      </div>
+
+      <!-- Methodology -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            Methodology
+          </div>
+        </div>
+        <div class="card-body text-xs text-slate-600 space-y-3 leading-relaxed">
+          <div>
+            <div class="font-bold text-slate-800 mb-1">Temporal Risk</div>
+            Pareto-style cumulative share of total frozen-period days. SKUs sorted descending by frozen days; <b>H</b>/<b>M</b>/<b>L</b> split at your thresholds.
+          </div>
+          <div>
+            <div class="font-bold text-slate-800 mb-1">Demand Variability</div>
+            Coefficient of Variation (CV = σ / μ) on weekly demand. <b>X</b> stable → <b>Y</b> moderate → <b>Z</b> erratic.
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Main Analysis Column -->
+    <section class="lg:col-span-8 xl:col-span-9 space-y-5">
+
+      <!-- Risk Matrix -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              Risk Matrix
+            </div>
+            <div class="card-subtitle">Click any zone for SKU-level detail · <strong>HZ</strong> (top-left) = highest risk · <strong>LX</strong> (bottom-right) = lowest</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="hidden md:flex items-center gap-1.5 text-[10px] text-slate-500">
+              <span>Risk</span>
+              <div class="flex items-center gap-0.5">
+                <span class="w-3 h-3 rounded-sm" style="background:#16a34a"></span>
+                <span class="w-3 h-3 rounded-sm" style="background:#86efac"></span>
+                <span class="w-3 h-3 rounded-sm" style="background:#facc15"></span>
+                <span class="w-3 h-3 rounded-sm" style="background:#f97316"></span>
+                <span class="w-3 h-3 rounded-sm" style="background:#dc2626"></span>
+                <span class="w-3 h-3 rounded-sm" style="background:#991b1b"></span>
+              </div>
+              <span>High</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="flex gap-2 md:gap-3">
+            <!-- Y-axis label -->
+            <div class="flex flex-col items-center justify-center w-10 md:w-12">
+              <div class="axis-header" style="writing-mode: vertical-rl; transform: rotate(180deg); letter-spacing: 0.15em;">Temporal Risk</div>
+            </div>
+
+            <div class="flex-1">
+              <!-- Column headers: Z, Y, X (reversed so HZ is top-left) -->
+              <div class="grid gap-2 md:gap-3 mb-2" style="grid-template-columns: 60px repeat(3, minmax(0, 1fr));">
+                <div></div>
+                <div class="text-center">
+                  <div class="axis-header">Z</div>
+                  <div class="axis-subheader">High Variance</div>
+                </div>
+                <div class="text-center">
+                  <div class="axis-header">Y</div>
+                  <div class="axis-subheader">Medium Variance</div>
+                </div>
+                <div class="text-center">
+                  <div class="axis-header">X</div>
+                  <div class="axis-subheader">Low Variance</div>
+                </div>
+              </div>
+
+              <!-- Matrix rows -->
+              <div class="grid gap-2 md:gap-3" style="grid-template-columns: 60px repeat(3, minmax(0, 1fr));">
+                <!-- High row -->
+                <div class="flex flex-col items-center justify-center">
+                  <div class="axis-header">High</div>
+                </div>
+                <div class="matrix-cell cell-HZ flex flex-col items-center justify-center p-3" data-cell="HZ">
+                  <span class="mc-label">HZ</span>
+                  <div class="mc-count" data-count="HZ">0</div>
+                  <div class="mc-sub">SKUs</div>
+                  <span class="mc-pct" data-pct="HZ">0%</span>
+                </div>
+                <div class="matrix-cell cell-HY flex flex-col items-center justify-center p-3" data-cell="HY">
+                  <span class="mc-label">HY</span>
+                  <div class="mc-count" data-count="HY">0</div>
+                  <div class="mc-sub">SKUs</div>
+                  <span class="mc-pct" data-pct="HY">0%</span>
+                </div>
+                <div class="matrix-cell cell-HX flex flex-col items-center justify-center p-3" data-cell="HX">
+                  <span class="mc-label">HX</span>
+                  <div class="mc-count" data-count="HX">0</div>
+                  <div class="mc-sub">SKUs</div>
+                  <span class="mc-pct" data-pct="HX">0%</span>
+                </div>
+
+                <!-- Medium row -->
+                <div class="flex flex-col items-center justify-center">
+                  <div class="axis-header">Medium</div>
+                </div>
+                <div class="matrix-cell cell-MZ flex flex-col items-center justify-center p-3" data-cell="MZ">
+                  <span class="mc-label">MZ</span>
+                  <div class="mc-count" data-count="MZ">0</div>
+                  <div class="mc-sub">SKUs</div>
+                  <span class="mc-pct" data-pct="MZ">0%</span>
+                </div>
+                <div class="matrix-cell cell-MY flex flex-col items-center justify-center p-3" data-cell="MY">
+                  <span class="mc-label">MY</span>
+                  <div class="mc-count" data-count="MY">0</div>
+                  <div class="mc-sub">SKUs</div>
+                  <span class="mc-pct" data-pct="MY">0%</span>
+                </div>
+                <div class="matrix-cell cell-MX flex flex-col items-center justify-center p-3" data-cell="MX">
+                  <span class="mc-label">MX</span>
+                  <div class="mc-count" data-count="MX">0</div>
+                  <div class="mc-sub">SKUs</div>
+                  <span class="mc-pct" data-pct="MX">0%</span>
+                </div>
+
+                <!-- Low row -->
+                <div class="flex flex-col items-center justify-center">
+                  <div class="axis-header">Low</div>
+                </div>
+                <div class="matrix-cell cell-LZ flex flex-col items-center justify-center p-3" data-cell="LZ">
+                  <span class="mc-label">LZ</span>
+                  <div class="mc-count" data-count="LZ">0</div>
+                  <div class="mc-sub">SKUs</div>
+                  <span class="mc-pct" data-pct="LZ">0%</span>
+                </div>
+                <div class="matrix-cell cell-LY flex flex-col items-center justify-center p-3" data-cell="LY">
+                  <span class="mc-label">LY</span>
+                  <div class="mc-count" data-count="LY">0</div>
+                  <div class="mc-sub">SKUs</div>
+                  <span class="mc-pct" data-pct="LY">0%</span>
+                </div>
+                <div class="matrix-cell cell-LX flex flex-col items-center justify-center p-3" data-cell="LX">
+                  <span class="mc-label">LX</span>
+                  <div class="mc-count" data-count="LX">0</div>
+                  <div class="mc-sub">SKUs</div>
+                  <span class="mc-pct" data-pct="LX">0%</span>
+                </div>
+              </div>
+
+              <!-- X-axis label -->
+              <div class="text-center mt-3">
+                <div class="axis-header inline-flex" style="letter-spacing: 0.15em;">Demand Variability →</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pareto Chart -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+              Temporal Risk — Pareto Distribution
+            </div>
+            <div class="card-subtitle">SKUs ranked by frozen period · bars colored by class · cumulative curve shows Pareto concentration</div>
+          </div>
+          <div class="flex items-center gap-1">
+            <button class="tab-btn active" data-pareto-tab="chart">Chart</button>
+            <button class="tab-btn" data-pareto-tab="summary">Breakdown</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="paretoTabChart">
+            <!-- Chart legend -->
+            <div class="flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-slate-600 mb-3">
+              <div class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm" style="background:#ef4444"></span> High temporal risk</div>
+              <div class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm" style="background:#facc15"></span> Medium</div>
+              <div class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm" style="background:#22c55e"></span> Low</div>
+              <div class="flex items-center gap-1.5 ml-2"><span class="inline-block w-5 border-t-2" style="border-color:#4f46e5"></span> Cumulative %</div>
+              <div class="flex items-center gap-1.5"><span class="inline-block w-5 border-t-2 border-dashed" style="border-color:#b91c1c"></span> <span id="lgdHigh">High 80%</span></div>
+              <div class="flex items-center gap-1.5"><span class="inline-block w-5 border-t-2 border-dashed" style="border-color:#a16207"></span> <span id="lgdMed">Medium 95%</span></div>
+            </div>
+
+            <div id="paretoWrapper" class="w-full relative">
+              <svg id="paretoChart" viewBox="0 0 960 360" class="pareto-svg" preserveAspectRatio="xMidYMid meet"></svg>
+              <div id="paretoTooltip" class="pareto-tooltip"></div>
+            </div>
+
+            <!-- Concentration insight -->
+            <div id="paretoInsight" class="mt-4 p-3 rounded-lg bg-indigo-50 border border-indigo-100 text-xs text-indigo-900 flex items-start gap-2">
+              <svg class="flex-shrink-0 mt-0.5" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11H5a2 2 0 0 0-2 2v7h18v-7a2 2 0 0 0-2-2h-4"></path><path d="M12 2v13"></path><polyline points="8 6 12 2 16 6"></polyline></svg>
+              <div id="paretoInsightText">—</div>
+            </div>
+          </div>
+
+          <div id="paretoTabSummary" class="hidden">
+            <div id="paretoSummary" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
+            <div class="mt-4">
+              <div class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Share of total frozen-days</div>
+              <div class="segment-bar" id="paretoSegmentBar"></div>
+              <div id="paretoSegmentLabels" class="flex justify-between text-[11px] text-slate-500 mt-1.5"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </div>
+</main>
+
+<!-- Modal -->
+<div id="modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+  <div class="modal-card w-full max-w-5xl max-h-[88vh] flex flex-col animate-in">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+      <div class="flex items-center gap-3">
+        <div id="modalBadge" class="badge badge-danger text-sm px-3 py-1">HZ</div>
+        <div>
+          <h3 id="modalTitle" class="text-base font-bold text-slate-800">Zone Details</h3>
+          <div id="modalSubtitle" class="text-xs text-slate-500">—</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="relative">
+          <input id="modalSearch" type="text" placeholder="Search SKU..." class="input pl-8 py-1.5" style="width: 200px;"/>
+          <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </div>
+        <button id="modalExport" class="btn btn-ghost" title="Export this zone">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        </button>
+        <button id="closeModal" class="btn btn-ghost" title="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+    </div>
+    <div class="overflow-auto flex-1">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th data-sort="sku">SKU ID <span class="sort-indicator">↕</span></th>
+            <th data-sort="risk">Class <span class="sort-indicator">↕</span></th>
+            <th class="num" data-sort="frozen">Frozen (days) <span class="sort-indicator">↕</span></th>
+            <th class="num" data-sort="cumPct">Cum. % <span class="sort-indicator">↕</span></th>
+            <th class="num" data-sort="mean">Mean <span class="sort-indicator">↕</span></th>
+            <th class="num" data-sort="std">Std Dev <span class="sort-indicator">↕</span></th>
+            <th class="num" data-sort="cv">CV <span class="sort-indicator">↕</span></th>
+          </tr>
+        </thead>
+        <tbody id="modalBody"></tbody>
+      </table>
+      <div id="modalEmpty" class="hidden text-center text-slate-500 py-12 text-sm">No SKUs match the current filter.</div>
+    </div>
+    <div class="px-5 py-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
+      <div id="modalStats">—</div>
+      <div class="text-slate-400">Click column headers to sort</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ======================== Demo Data ======================== */
+function genDemoData(){
+  const skus = [];
+  for (let i=1; i<=35; i++) skus.push('SKU' + String(i).padStart(3,'0'));
+  const frozen = {};
+  skus.forEach((s, i) => {
+    frozen[s] = Math.max(1, Math.round(60 * Math.exp(-i/10) + (Math.random()*4 - 2)));
+  });
+  const demand = {};
+  skus.forEach((s) => {
+    const base = 50 + Math.random()*400;
+    const noiseLvl = Math.random();
+    const weeks = [];
+    for (let w=0; w<52; w++){
+      let val = base + (Math.random()-0.5)*2*base*noiseLvl;
+      if (noiseLvl > 0.7 && Math.random() < 0.15) val = 0;
+      weeks.push(Math.max(0, Math.round(val)));
+    }
+    demand[s] = weeks;
+  });
+  return { frozen, demand };
+}
+let currentData = genDemoData();
+let lastAnalysis = null;
+
+/* ======================== CSV Helpers ======================== */
+function parseCSV(text){
+  const lines = text.replace(/\r/g,'').split('\n').filter(l => l.length > 0);
+  if (!lines.length) return [];
+  const headers = splitCSVLine(lines[0]).map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const vals = splitCSVLine(line);
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = vals[i] !== undefined ? vals[i].trim() : '');
+    return obj;
+  });
+}
+function splitCSVLine(line){
+  const out = []; let cur = ''; let inQ = false;
+  for (let i=0; i<line.length; i++){
+    const ch = line[i];
+    if (ch === '"'){ if (inQ && line[i+1] === '"'){ cur += '"'; i++; } else inQ = !inQ; }
+    else if (ch === ',' && !inQ){ out.push(cur); cur = ''; }
+    else cur += ch;
+  }
+  out.push(cur); return out;
+}
+function toCSV(rows, columns){
+  const esc = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+  const head = columns.map(c => esc(c.label)).join(',');
+  const body = rows.map(r => columns.map(c => esc(typeof c.get === 'function' ? c.get(r) : r[c.key])).join(',')).join('\n');
+  return head + '\n' + body;
+}
+function downloadCSV(filename, csv){
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+/* ======================== File Handling ======================== */
+function bindFile(inputId, dropId, nameId, badgeId, handler){
+  const input = document.getElementById(inputId);
+  const drop = document.getElementById(dropId);
+  const nameEl = document.getElementById(nameId);
+  const badge = document.getElementById(badgeId);
+  input.addEventListener('change', async (e)=>{
+    const f = e.target.files[0]; if (!f) return;
+    try{
+      const text = await f.text();
+      const count = handler(text);
+      drop.classList.add('loaded');
+      nameEl.textContent = f.name;
+      badge.textContent = count + ' rows';
+      badge.className = 'badge badge-success';
+      updateDataStatus();
+    }catch(err){
+      nameEl.textContent = 'Error: ' + err.message;
+      badge.textContent = 'Error'; badge.className = 'badge badge-danger';
+    }
+  });
+  ['dragover','dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.style.borderColor = 'var(--primary)'; }));
+  ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.style.borderColor = ''; }));
+  drop.addEventListener('drop', e => {
+    const f = e.dataTransfer?.files?.[0]; if (!f) return;
+    input.files = e.dataTransfer.files;
+    input.dispatchEvent(new Event('change'));
+  });
+}
+bindFile('fileA','fileADrop','fileAName','fileABadge', (text)=>{
+  const rows = parseCSV(text); const fr = {};
+  for (const r of rows){
+    const sku = r.SKU || r.sku || r['Item Number'];
+    const v = r.LFrozenPeriod || r.lfrozenperiod || r['Frozen period'] || r.FrozenPeriod;
+    if (sku) fr[String(sku).trim()] = Number(v) || 0;
+  }
+  currentData.frozen = fr;
+  return Object.keys(fr).length;
+});
+bindFile('fileB','fileBDrop','fileBName','fileBBadge', (text)=>{
+  const rows = parseCSV(text); const dem = {};
+  for (const r of rows){
+    const sku = r.SKU || r.sku || r['Item Number']; if (!sku) continue;
+    const weeks = [];
+    for (let w=1; w<=52; w++){ const key = 'Week'+w; weeks.push(Number(r[key]) || 0); }
+    dem[String(sku).trim()] = weeks;
+  }
+  currentData.demand = dem;
+  return Object.keys(dem).length;
+});
+
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  currentData = genDemoData();
+  ['fileA','fileB'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('fileAName').textContent = 'Drop CSV or click to browse';
+  document.getElementById('fileBName').textContent = 'Drop CSV or click to browse';
+  document.getElementById('fileADrop').classList.remove('loaded');
+  document.getElementById('fileBDrop').classList.remove('loaded');
+  document.getElementById('fileABadge').textContent = 'Demo';
+  document.getElementById('fileABadge').className = 'badge badge-muted';
+  document.getElementById('fileBBadge').textContent = 'Demo';
+  document.getElementById('fileBBadge').className = 'badge badge-muted';
+  updateDataStatus();
+  runAnalysis();
+});
+
+function updateDataStatus(){
+  const txt = document.getElementById('dataStatusText');
+  const dot = document.querySelector('#dataStatus .status-dot');
+  const a = document.getElementById('fileABadge').textContent;
+  const b = document.getElementById('fileBBadge').textContent;
+  if (a === 'Demo' && b === 'Demo'){
+    txt.textContent = `Demo dataset · ${Object.keys(currentData.frozen).length} SKUs`;
+    dot.className = 'status-dot demo';
+  } else {
+    txt.textContent = `Custom data · ${Object.keys(currentData.frozen).length} SKUs loaded`;
+    dot.className = 'status-dot ok';
+  }
+}
+
+/* ======================== Analysis ======================== */
+function runAnalysis(){
+  const highLim = Math.max(0, Math.min(99, parseFloat(document.getElementById('highLim').value) || 80));
+  const medLim  = Math.max(highLim+0.1, Math.min(99.9, parseFloat(document.getElementById('medLim').value) || 95));
+  const xLim    = Math.max(0, parseFloat(document.getElementById('xLim').value) || 0.5);
+  const yLim    = Math.max(xLim, parseFloat(document.getElementById('yLim').value) || 1.0);
+
+  document.getElementById('lgdHigh').textContent = `High ${highLim}%`;
+  document.getElementById('lgdMed').textContent  = `Medium ${medLim}%`;
+
+  const frozen = currentData.frozen;
+  const demand = currentData.demand;
+  const allSkus = Object.keys(frozen).filter(s => frozen[s] > 0);
+  const sorted = allSkus.map(s => ({sku: s, frozen: frozen[s]})).sort((a,b)=> b.frozen - a.frozen);
+  const total = sorted.reduce((acc,x)=>acc+x.frozen, 0) || 1;
+
+  let cum = 0;
+  const rows = sorted.map(r => {
+    cum += r.frozen;
+    const cumPct = (cum/total)*100;
+    let tempClass = cumPct <= highLim ? 'H' : (cumPct <= medLim ? 'M' : 'L');
+    const weeks = demand[r.sku] || [];
+    const n = weeks.length || 1;
+    const mean = weeks.reduce((a,b)=>a+b,0) / n;
+    const variance = weeks.reduce((a,b)=>a+(b-mean)**2,0) / n;
+    const std = Math.sqrt(variance);
+    const cv = mean > 0 ? std/mean : 0;
+    let varClass = cv <= xLim ? 'X' : (cv <= yLim ? 'Y' : 'Z');
+    return { sku: r.sku, frozen: r.frozen, cumPct, tempClass, mean, std, cv, varClass, risk: tempClass+varClass };
+  });
+
+  const cells = {HZ:[],HY:[],HX:[],MZ:[],MY:[],MX:[],LZ:[],LY:[],LX:[]};
+  rows.forEach(r => { if (cells[r.risk]) cells[r.risk].push(r); });
+
+  const totalSkus = rows.length || 1;
+  Object.keys(cells).forEach(k => {
+    const cEl = document.querySelector(`[data-count="${k}"]`);
+    const pEl = document.querySelector(`[data-pct="${k}"]`);
+    if (cEl) cEl.textContent = cells[k].length;
+    if (pEl) pEl.textContent = ((cells[k].length/totalSkus)*100).toFixed(0) + '%';
+  });
+
+  lastAnalysis = { rows, cells, thresholds: {highLim, medLim, xLim, yLim}, total };
+
+  renderKPIs();
+  drawPareto();
+  renderParetoSummary();
+  renderParetoInsight();
+  updateDataStatus();
+}
+
+/* ======================== KPI Row ======================== */
+function renderKPIs(){
+  if (!lastAnalysis) return;
+  const { rows, cells, total } = lastAnalysis;
+  const n = rows.length || 1;
+  const highRiskSkus = cells.HZ.length + cells.HY.length + cells.HX.length;
+  const erraticSkus = cells.HZ.length + cells.MZ.length + cells.LZ.length;
+  const avgCV = rows.reduce((s,r)=>s+r.cv, 0) / n;
+  const top20n = Math.max(1, Math.ceil(n * 0.2));
+  const top20days = rows.slice(0, top20n).reduce((s,r)=>s+r.frozen, 0);
+  const top20share = (top20days/total*100);
+
+  const kpis = [
+    { label: 'Total SKUs', value: n.toLocaleString(), sub: 'in analysis', color: '#4f46e5' },
+    { label: 'Avg Frozen Days', value: (total/n).toLocaleString(), sub: 'across portfolio', color: '#0ea5e9' },
+    { label: 'High Temporal Risk', value: highRiskSkus, sub: `${((highRiskSkus/n)*100).toFixed(0)}% of SKUs`, color: '#dc2626' },
+    { label: 'Erratic Demand (Z)', value: erraticSkus, sub: `${((erraticSkus/n)*100).toFixed(0)}% of SKUs`, color: '#f97316' },
+    { label: 'Avg CV', value: avgCV.toFixed(2), sub: `Top-20% → ${top20share.toFixed(0)}% of days`, color: '#10b981' },
+  ];
+  const row = document.getElementById('kpiRow');
+  row.innerHTML = kpis.map(k => `
+    <div class="kpi">
+      <div class="kpi-accent" style="background:${k.color}"></div>
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>
+  `).join('');
+}
+
+/* ======================== Pareto Chart ======================== */
+function drawPareto(){
+  const svg = document.getElementById('paretoChart');
+  const tooltip = document.getElementById('paretoTooltip');
+  svg.innerHTML = '';
+  if (!lastAnalysis) return;
+
+  const { rows, thresholds } = lastAnalysis;
+  const W = 960, H = 360;
+  const M = { top: 24, right: 70, bottom: 56, left: 68 };
+  const plotW = W - M.left - M.right;
+  const plotH = H - M.top - M.bottom;
+
+  const n = rows.length;
+  const maxFrozen = Math.max(...rows.map(r => r.frozen), 1);
+  const xFor = i => M.left + (plotW / n) * i;
+  const barW = Math.max(1, (plotW / n) - 1.5);
+  const yLeft = v => M.top + plotH - (v / maxFrozen) * plotH;
+  const yRight = pct => M.top + plotH - (pct / 100) * plotH;
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const frag = document.createDocumentFragment();
+
+  // Zone bands (subtle background for H / M / L)
+  const hEndIdx = rows.findIndex(r => r.tempClass !== 'H');
+  const mEndIdx = rows.findIndex(r => r.tempClass === 'L');
+  const hEnd = hEndIdx === -1 ? n : hEndIdx;
+  const mEnd = mEndIdx === -1 ? n : mEndIdx;
+
+  const zoneDefs = [
+    { start: 0, end: hEnd, color: '#ef4444' },
+    { start: hEnd, end: mEnd, color: '#facc15' },
+    { start: mEnd, end: n, color: '#22c55e' },
+  ];
+  zoneDefs.forEach(z => {
+    if (z.end <= z.start) return;
+    const rect = document.createElementNS(NS, 'rect');
+    rect.setAttribute('x', xFor(z.start));
+    rect.setAttribute('y', M.top);
+    rect.setAttribute('width', xFor(z.end) - xFor(z.start));
+    rect.setAttribute('height', plotH);
+    rect.setAttribute('fill', z.color);
+    rect.setAttribute('class', 'pareto-zone-band');
+    frag.appendChild(rect);
+  });
+
+  // Grid
+  for (let p=0; p<=100; p+=20){
+    const y = yRight(p);
+    const line = document.createElementNS(NS, 'line');
+    line.setAttribute('x1', M.left); line.setAttribute('x2', M.left+plotW);
+    line.setAttribute('y1', y); line.setAttribute('y2', y);
+    line.setAttribute('class','pareto-grid');
+    line.setAttribute('stroke','#f1f5f9');
+    frag.appendChild(line);
+  }
+
+  // Bars
+  rows.forEach((r, i) => {
+    const bar = document.createElementNS(NS, 'rect');
+    bar.setAttribute('x', xFor(i));
+    bar.setAttribute('y', yLeft(r.frozen));
+    bar.setAttribute('width', barW);
+    bar.setAttribute('height', plotH - (yLeft(r.frozen) - M.top));
+    bar.setAttribute('rx', 1);
+    bar.setAttribute('class', 'pareto-bar pareto-bar-' + r.tempClass);
+    bar.addEventListener('mousemove', (ev) => {
+      const rect = svg.getBoundingClientRect();
+      const wrapRect = svg.parentElement.getBoundingClientRect();
+      tooltip.classList.add('show');
+      tooltip.innerHTML = `
+        <div class="tt-title">${r.sku}</div>
+        <div class="tt-row"><span>Frozen:</span><b>${r.frozen} days</b></div>
+        <div class="tt-row"><span>Cumulative:</span><b>${r.cumPct.toFixed(2)}%</b></div>
+        <div class="tt-row"><span>Rank:</span><b>#${i+1} of ${n}</b></div>
+        <div class="tt-row"><span>Class:</span><b>${r.tempClass}</b></div>
+      `;
+      const tx = ev.clientX - wrapRect.left + 12;
+      const ty = ev.clientY - wrapRect.top - 10;
+      tooltip.style.left = tx + 'px';
+      tooltip.style.top  = ty + 'px';
+    });
+    bar.addEventListener('mouseleave', () => tooltip.classList.remove('show'));
+    frag.appendChild(bar);
+  });
+
+  // Cumulative line + area
+  let pathD = ''; let areaD = '';
+  rows.forEach((r, i) => {
+    const x = xFor(i) + barW/2;
+    const y = yRight(r.cumPct);
+    pathD += (i === 0 ? 'M' : 'L') + x + ',' + y + ' ';
+    areaD += (i === 0 ? `M${x},${M.top+plotH} L` : 'L') + x + ',' + y + ' ';
+  });
+  if (rows.length){
+    areaD += `L${xFor(rows.length-1)+barW/2},${M.top+plotH} Z`;
+    const area = document.createElementNS(NS, 'path');
+    area.setAttribute('d', areaD);
+    area.setAttribute('fill', '#4f46e5');
+    area.setAttribute('fill-opacity', '0.06');
+    frag.appendChild(area);
+  }
+  const path = document.createElementNS(NS, 'path');
+  path.setAttribute('d', pathD);
+  path.setAttribute('class','pareto-line');
+  frag.appendChild(path);
+
+  // Threshold lines + labels
+  const thresholds2 = [
+    {v: thresholds.highLim, cls: 'pareto-threshold-H', label: `H ${thresholds.highLim}%`, color:'#b91c1c'},
+    {v: thresholds.medLim,  cls: 'pareto-threshold-M', label: `M ${thresholds.medLim}%`, color:'#a16207'},
+  ];
+  thresholds2.forEach(t => {
+    const y = yRight(t.v);
+    const line = document.createElementNS(NS, 'line');
+    line.setAttribute('x1', M.left); line.setAttribute('x2', M.left+plotW);
+    line.setAttribute('y1', y); line.setAttribute('y2', y);
+    line.setAttribute('class', t.cls);
+    frag.appendChild(line);
+
+    const labelBg = document.createElementNS(NS, 'rect');
+    labelBg.setAttribute('x', M.left + plotW - 50);
+    labelBg.setAttribute('y', y - 14);
+    labelBg.setAttribute('width', 46);
+    labelBg.setAttribute('height', 14);
+    labelBg.setAttribute('fill', '#fff');
+    labelBg.setAttribute('stroke', t.color);
+    labelBg.setAttribute('stroke-width', '1');
+    labelBg.setAttribute('rx', 3);
+    frag.appendChild(labelBg);
+
+    const txt = document.createElementNS(NS, 'text');
+    txt.setAttribute('x', M.left + plotW - 27);
+    txt.setAttribute('y', y - 4);
+    txt.setAttribute('text-anchor','middle');
+    txt.setAttribute('fill', t.color);
+    txt.setAttribute('font-size','10');
+    txt.setAttribute('font-weight','700');
+    txt.textContent = t.label;
+    frag.appendChild(txt);
+  });
+
+  // Axis left
+  const axisL = document.createElementNS(NS, 'g');
+  axisL.setAttribute('class','pareto-axis');
+  const axisLine = document.createElementNS(NS,'line');
+  axisLine.setAttribute('x1', M.left); axisLine.setAttribute('x2', M.left);
+  axisLine.setAttribute('y1', M.top); axisLine.setAttribute('y2', M.top+plotH);
+  axisLine.setAttribute('stroke','#cbd5e1');
+  axisL.appendChild(axisLine);
+  const lTicks = 5;
+  for (let i=0; i<=lTicks; i++){
+    const v = maxFrozen * (i/lTicks);
+    const y = yLeft(v);
+    const tk = document.createElementNS(NS,'line');
+    tk.setAttribute('x1', M.left-4); tk.setAttribute('x2', M.left);
+    tk.setAttribute('y1', y); tk.setAttribute('y2', y);
+    tk.setAttribute('stroke','#cbd5e1');
+    axisL.appendChild(tk);
+    const lbl = document.createElementNS(NS,'text');
+    lbl.setAttribute('x', M.left-7); lbl.setAttribute('y', y+3);
+    lbl.setAttribute('text-anchor','end');
+    lbl.textContent = Math.round(v);
+    axisL.appendChild(lbl);
+  }
+  const lTitle = document.createElementNS(NS,'text');
+  lTitle.setAttribute('x', 16); lTitle.setAttribute('y', M.top + plotH/2);
+  lTitle.setAttribute('transform', `rotate(-90 16,${M.top + plotH/2})`);
+  lTitle.setAttribute('font-size','11'); lTitle.setAttribute('font-weight','700');
+  lTitle.setAttribute('fill','#334155');
+  lTitle.setAttribute('text-anchor','middle');
+  lTitle.textContent = 'Frozen Period (days)';
+  axisL.appendChild(lTitle);
+  frag.appendChild(axisL);
+
+  // Axis right (cumulative %)
+  const axisR = document.createElementNS(NS, 'g');
+  axisR.setAttribute('class','pareto-axis');
+  const axisRLine = document.createElementNS(NS,'line');
+  axisRLine.setAttribute('x1', M.left+plotW); axisRLine.setAttribute('x2', M.left+plotW);
+  axisRLine.setAttribute('y1', M.top); axisRLine.setAttribute('y2', M.top+plotH);
+  axisRLine.setAttribute('stroke','#cbd5e1');
+  axisR.appendChild(axisRLine);
+  for (let p=0; p<=100; p+=20){
+    const y = yRight(p);
+    const tk = document.createElementNS(NS,'line');
+    tk.setAttribute('x1', M.left+plotW); tk.setAttribute('x2', M.left+plotW+4);
+    tk.setAttribute('y1', y); tk.setAttribute('y2', y);
+    tk.setAttribute('stroke','#cbd5e1');
+    axisR.appendChild(tk);
+    const lbl = document.createElementNS(NS,'text');
+    lbl.setAttribute('x', M.left+plotW+7); lbl.setAttribute('y', y+3);
+    lbl.textContent = p + '%';
+    axisR.appendChild(lbl);
+  }
+  const rTitle = document.createElementNS(NS,'text');
+  rTitle.setAttribute('x', W-18); rTitle.setAttribute('y', M.top + plotH/2);
+  rTitle.setAttribute('transform', `rotate(90 ${W-18},${M.top + plotH/2})`);
+  rTitle.setAttribute('font-size','11'); rTitle.setAttribute('font-weight','700');
+  rTitle.setAttribute('fill','#334155'); rTitle.setAttribute('text-anchor','middle');
+  rTitle.textContent = 'Cumulative %';
+  axisR.appendChild(rTitle);
+  frag.appendChild(axisR);
+
+  // X axis baseline + title
+  const baseLine = document.createElementNS(NS,'line');
+  baseLine.setAttribute('x1', M.left); baseLine.setAttribute('x2', M.left+plotW);
+  baseLine.setAttribute('y1', M.top+plotH); baseLine.setAttribute('y2', M.top+plotH);
+  baseLine.setAttribute('stroke','#cbd5e1');
+  frag.appendChild(baseLine);
+
+  const xTitle = document.createElementNS(NS,'text');
+  xTitle.setAttribute('x', M.left + plotW/2);
+  xTitle.setAttribute('y', H - 16);
+  xTitle.setAttribute('text-anchor','middle');
+  xTitle.setAttribute('font-size','11'); xTitle.setAttribute('font-weight','700');
+  xTitle.setAttribute('fill','#334155');
+  xTitle.textContent = `SKUs ranked by frozen period (n = ${n})`;
+  frag.appendChild(xTitle);
+
+  // Zone tick counts at bottom
+  zoneDefs.forEach(z => {
+    if (z.end <= z.start) return;
+    const count = z.end - z.start;
+    const mid = (xFor(z.start) + xFor(z.end)) / 2;
+    const t = document.createElementNS(NS,'text');
+    t.setAttribute('x', mid); t.setAttribute('y', M.top + plotH + 16);
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('font-size','10'); t.setAttribute('font-weight','600');
+    t.setAttribute('fill', z.color);
+    t.textContent = count + ' SKU' + (count === 1 ? '' : 's');
+    frag.appendChild(t);
+  });
+
+  svg.appendChild(frag);
+}
+
+function renderParetoSummary(){
+  const wrap = document.getElementById('paretoSummary');
+  const segWrap = document.getElementById('paretoSegmentBar');
+  const segLabels = document.getElementById('paretoSegmentLabels');
+  wrap.innerHTML = ''; segWrap.innerHTML = ''; segLabels.innerHTML = '';
+  if (!lastAnalysis) return;
+  const { rows } = lastAnalysis;
+  const n = rows.length || 1;
+  const counts = { H: 0, M: 0, L: 0 };
+  const daysSum = { H: 0, M: 0, L: 0 };
+  rows.forEach(r => { counts[r.tempClass]++; daysSum[r.tempClass] += r.frozen; });
+  const totDays = daysSum.H + daysSum.M + daysSum.L || 1;
+
+  const cards = [
+    { key:'H', name:'High Temporal Risk', color:'#ef4444', desc:'Longest frozen periods — prioritize forecasting, safety buffers, and exception monitoring.' },
+    { key:'M', name:'Medium Temporal Risk', color:'#facc15', desc:'Moderate frozen periods — standard planning cycles with periodic review.' },
+    { key:'L', name:'Low Temporal Risk', color:'#22c55e', desc:'Short frozen periods — lowest urgency, manage via automation.' },
+  ];
+  cards.forEach(c => {
+    const pctSkus = (counts[c.key]/n*100).toFixed(1);
+    const pctDays = (daysSum[c.key]/totDays*100).toFixed(1);
+    const el = document.createElement('div');
+    el.className = 'rounded-lg p-4 border border-slate-200 bg-white';
+    el.innerHTML = `
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2.5 h-2.5 rounded-full" style="background:${c.color}"></span>
+          <span class="font-semibold text-slate-800 text-sm">${c.name}</span>
+        </div>
+        <span class="badge" style="background:${c.color}20;color:${c.color};">${c.key}</span>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <div class="text-2xl font-bold text-slate-900">${counts[c.key]}</div>
+        <div class="text-xs text-slate-500">SKUs · ${pctSkus}%</div>
+      </div>
+      <div class="text-xs text-slate-600 mt-1">${daysSum[c.key].toLocaleString()} frozen-days · ${pctDays}% of total</div>
+      <div class="text-[11px] text-slate-500 mt-2 leading-relaxed">${c.desc}</div>
+    `;
+    wrap.appendChild(el);
+  });
+
+  // Segment bar
+  cards.forEach(c => {
+    const pct = daysSum[c.key]/totDays*100;
+    if (pct <= 0) return;
+    const seg = document.createElement('div');
+    seg.style.width = pct + '%';
+    seg.style.background = c.color;
+    seg.title = `${c.name}: ${pct.toFixed(1)}% of frozen-days`;
+    segWrap.appendChild(seg);
+  });
+  cards.forEach(c => {
+    const pct = daysSum[c.key]/totDays*100;
+    const l = document.createElement('div');
+    l.innerHTML = `<span class="font-semibold" style="color:${c.color}">${c.key}</span> ${pct.toFixed(1)}%`;
+    segLabels.appendChild(l);
+  });
+}
+
+function renderParetoInsight(){
+  const el = document.getElementById('paretoInsightText');
+  if (!lastAnalysis) return;
+  const { rows, total, thresholds } = lastAnalysis;
+  const n = rows.length || 1;
+  const hCount = rows.filter(r => r.tempClass === 'H').length;
+  const hDays = rows.filter(r => r.tempClass === 'H').reduce((s,r)=>s+r.frozen,0);
+  const hShareSkus = (hCount/n*100).toFixed(1);
+  const hShareDays = (hDays/total*100).toFixed(1);
+
+  const top20n = Math.max(1, Math.ceil(n * 0.2));
+  const top20days = rows.slice(0, top20n).reduce((s,r)=>s+r.frozen, 0);
+  const top20share = (top20days/total*100).toFixed(1);
+
+  el.innerHTML = `
+    <b>Pareto concentration:</b> the top <b>${top20n} SKUs (20%)</b> account for <b>${top20share}%</b> of total frozen-days.
+    Your High threshold (${thresholds.highLim}%) captures <b>${hCount} SKUs (${hShareSkus}%)</b> representing <b>${hShareDays}%</b> of frozen-days — these are the priority targets for mitigation.
+  `;
+}
+
+/* ======================== Tabs ======================== */
+document.querySelectorAll('[data-pareto-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-pareto-tab]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.paretoTab;
+    document.getElementById('paretoTabChart').classList.toggle('hidden', tab !== 'chart');
+    document.getElementById('paretoTabSummary').classList.toggle('hidden', tab !== 'summary');
+  });
+});
+
+/* ======================== Modal ======================== */
+let modalState = { key: null, rows: [], sortKey: 'frozen', sortDir: -1, search: '' };
+
+document.querySelectorAll('[data-cell]').forEach(cell => {
+  cell.addEventListener('click', () => showModal(cell.getAttribute('data-cell')));
+});
+document.getElementById('closeModal').addEventListener('click', hideModal);
+document.getElementById('modal').addEventListener('click', e => { if (e.target.id === 'modal') hideModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideModal(); });
+
+document.getElementById('modalSearch').addEventListener('input', e => {
+  modalState.search = e.target.value.toLowerCase();
+  renderModalBody();
+});
+document.querySelectorAll('.data-table thead th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const k = th.dataset.sort;
+    if (modalState.sortKey === k) modalState.sortDir *= -1;
+    else { modalState.sortKey = k; modalState.sortDir = (k === 'sku' || k === 'risk') ? 1 : -1; }
+    renderModalBody();
+  });
+});
+document.getElementById('modalExport').addEventListener('click', () => {
+  if (!modalState.rows.length) return;
+  const csv = toCSV(modalState.rows, [
+    {key:'sku', label:'SKU'},
+    {key:'risk', label:'Risk Class'},
+    {key:'frozen', label:'Frozen Period (days)'},
+    {label:'Cumulative %', get: r => r.cumPct.toFixed(2)},
+    {label:'Mean Demand', get: r => r.mean.toFixed(2)},
+    {label:'Std Dev', get: r => r.std.toFixed(2)},
+    {label:'CV', get: r => r.cv.toFixed(4)},
+  ]);
+  downloadCSV(`risk_${modalState.key}_${Date.now()}.csv`, csv);
+});
+
+function showModal(key){
+  if (!lastAnalysis) return;
+  const list = lastAnalysis.cells[key] || [];
+  modalState = { key, rows: list.slice(), sortKey: 'frozen', sortDir: -1, search: '' };
+  document.getElementById('modalSearch').value = '';
+  document.getElementById('modalTitle').textContent = `Zone ${key} — ${list.length} SKU${list.length === 1 ? '' : 's'}`;
+  const badge = document.getElementById('modalBadge');
+  badge.textContent = key;
+  badge.className = 'badge text-sm px-3 py-1';
+  const colors = { H:{bg:'#fee2e2',fg:'#b91c1c'}, M:{bg:'#fef3c7',fg:'#b45309'}, L:{bg:'#d1fae5',fg:'#047857'} };
+  const c = colors[key[0]] || colors.L;
+  badge.style.background = c.bg; badge.style.color = c.fg;
+
+  const subtitle = {
+    H: 'Long frozen periods · highest temporal risk',
+    M: 'Moderate frozen periods',
+    L: 'Short frozen periods · lowest temporal risk',
+  }[key[0]];
+  const varSub = { X:'stable demand (CV ≤ X limit)', Y:'moderate variability', Z:'erratic demand (CV > Y limit)' }[key[1]];
+  document.getElementById('modalSubtitle').textContent = `${subtitle} · ${varSub}`;
+
+  renderModalBody();
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function renderModalBody(){
+  const tbody = document.getElementById('modalBody');
+  const emptyEl = document.getElementById('modalEmpty');
+  const statsEl = document.getElementById('modalStats');
+  tbody.innerHTML = '';
+
+  let rows = modalState.rows.slice();
+  if (modalState.search) rows = rows.filter(r => r.sku.toLowerCase().includes(modalState.search));
+
+  const k = modalState.sortKey; const d = modalState.sortDir;
+  rows.sort((a, b) => {
+    const av = a[k]; const bv = b[k];
+    if (typeof av === 'string') return av.localeCompare(bv) * d;
+    return (av - bv) * d;
+  });
+
+  // Sort indicator
+  document.querySelectorAll('.data-table thead th[data-sort]').forEach(th => {
+    const span = th.querySelector('.sort-indicator');
+    if (!span) return;
+    if (th.dataset.sort === k){
+      span.classList.add('active');
+      span.textContent = d === 1 ? '↑' : '↓';
+    } else { span.classList.remove('active'); span.textContent = '↕'; }
+  });
+
+  if (!rows.length){
+    emptyEl.classList.remove('hidden');
+    statsEl.textContent = '0 rows';
+    return;
+  }
+  emptyEl.classList.add('hidden');
+
+  const frag = document.createDocumentFragment();
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="font-mono text-slate-800 font-semibold">${r.sku}</td>
+      <td><span class="badge cell-${r.risk}" style="text-shadow:none;">${r.risk}</span></td>
+      <td class="num">${r.frozen}</td>
+      <td class="num text-slate-600">${r.cumPct.toFixed(2)}%</td>
+      <td class="num">${r.mean.toFixed(1)}</td>
+      <td class="num">${r.std.toFixed(1)}</td>
+      <td class="num"><span class="font-semibold">${r.cv.toFixed(3)}</span></td>
+    `;
+    frag.appendChild(tr);
+  });
+  tbody.appendChild(frag);
+
+  // Stats
+  const totalFrozen = rows.reduce((s,r)=>s+r.frozen,0);
+  const avgCV = rows.reduce((s,r)=>s+r.cv,0)/rows.length;
+  statsEl.innerHTML = `<b>${rows.length}</b> row${rows.length === 1 ? '' : 's'} · total frozen: <b>${totalFrozen}</b> days · avg CV: <b>${avgCV.toFixed(3)}</b>`;
+}
+
+function hideModal(){ document.getElementById('modal').classList.add('hidden'); }
+
+/* ======================== Top-level exports ======================== */
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (!lastAnalysis) return;
+  const csv = toCSV(lastAnalysis.rows, [
+    {key:'sku', label:'SKU'},
+    {key:'risk', label:'Risk Class'},
+    {key:'tempClass', label:'Temporal Class'},
+    {key:'varClass', label:'Variability Class'},
+    {key:'frozen', label:'Frozen Period (days)'},
+    {label:'Cumulative %', get: r => r.cumPct.toFixed(2)},
+    {label:'Mean Demand', get: r => r.mean.toFixed(2)},
+    {label:'Std Dev', get: r => r.std.toFixed(2)},
+    {label:'CV', get: r => r.cv.toFixed(4)},
+  ]);
+  downloadCSV(`risk_matrix_analysis_${Date.now()}.csv`, csv);
+});
+
+/* ======================== Init ======================== */
+document.getElementById('runBtn').addEventListener('click', runAnalysis);
+document.getElementById('runBtnTop').addEventListener('click', runAnalysis);
+['highLim','medLim','xLim','yLim'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') runAnalysis(); });
+});
+window.addEventListener('resize', drawPareto);
+runAnalysis();
+</script>
+</body>
+</html>

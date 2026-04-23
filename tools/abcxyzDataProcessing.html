@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Excel → CSV Converter (SKU / Weekly Demand)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  .scroll-x { overflow-x: auto; }
+  table { border-collapse: collapse; }
+  th, td { border: 1px solid #e5e7eb; padding: 4px 8px; font-size: 12px; white-space: nowrap; }
+  th { background: #f3f4f6; position: sticky; top: 0; }
+</style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+<div class="max-w-6xl mx-auto p-6">
+  <h1 class="text-2xl font-bold text-slate-800 mb-2">Excel → CSV Converter</h1>
+  <p class="text-sm text-slate-600 mb-6">
+    Upload the Excel file (one sheet, 9 columns) and generate two CSV files:
+    <strong>(1)</strong> SKU & LFrozenPeriod, and
+    <strong>(2)</strong> SKU with weekly (Sun–Sat) aggregated order quantities for the latest 52 weeks.
+  </p>
+
+  <!-- Upload card -->
+  <div class="bg-white rounded-xl shadow p-5 mb-6">
+    <label class="block text-sm font-medium text-slate-700 mb-2">Upload Excel File (.xlsx / .xls)</label>
+    <input id="fileInput" type="file" accept=".xlsx,.xls"
+           class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
+                  file:text-sm file:font-semibold file:bg-indigo-600 file:text-white
+                  hover:file:bg-indigo-700 cursor-pointer" />
+    <div class="mt-3 flex items-center gap-3">
+      <label class="text-sm text-slate-700 flex items-center gap-2">
+        Week ordering:
+        <select id="weekOrder" class="border border-slate-300 rounded px-2 py-1 text-sm">
+          <option value="asc">Week1 = oldest, Week52 = most recent (default)</option>
+          <option value="desc">Week1 = most recent, Week52 = oldest</option>
+        </select>
+      </label>
+    </div>
+    <div id="status" class="mt-3 text-sm text-slate-600"></div>
+  </div>
+
+  <!-- Summary -->
+  <div id="summary" class="hidden bg-white rounded-xl shadow p-5 mb-6">
+    <h2 class="text-lg font-semibold text-slate-800 mb-3">Summary</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+      <div class="bg-slate-50 p-3 rounded-lg">
+        <div class="text-slate-500">Total Rows</div>
+        <div id="sumRows" class="text-xl font-bold text-slate-800"></div>
+      </div>
+      <div class="bg-slate-50 p-3 rounded-lg">
+        <div class="text-slate-500">Unique SKUs</div>
+        <div id="sumSkus" class="text-xl font-bold text-slate-800"></div>
+      </div>
+      <div class="bg-slate-50 p-3 rounded-lg">
+        <div class="text-slate-500">Min Order Date</div>
+        <div id="sumMin" class="text-base font-bold text-slate-800"></div>
+      </div>
+      <div class="bg-slate-50 p-3 rounded-lg">
+        <div class="text-slate-500">Max Order Date</div>
+        <div id="sumMax" class="text-base font-bold text-slate-800"></div>
+      </div>
+      <div class="bg-slate-50 p-3 rounded-lg col-span-2">
+        <div class="text-slate-500">Week52 Saturday (anchor)</div>
+        <div id="sumAnchor" class="text-base font-bold text-slate-800"></div>
+      </div>
+      <div class="bg-slate-50 p-3 rounded-lg col-span-2">
+        <div class="text-slate-500">Week1 Saturday (earliest of 52-week window)</div>
+        <div id="sumStart" class="text-base font-bold text-slate-800"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Downloads -->
+  <div id="downloads" class="hidden bg-white rounded-xl shadow p-5 mb-6">
+    <h2 class="text-lg font-semibold text-slate-800 mb-3">Download CSVs</h2>
+    <div class="flex flex-wrap gap-3">
+      <button id="dlFrozen" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+        Download SKU_LFrozenPeriod.csv
+      </button>
+      <button id="dlWeekly" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+        Download SKU_Weekly52.csv
+      </button>
+    </div>
+  </div>
+
+  <!-- Preview tables -->
+  <div id="previewSection" class="hidden space-y-6">
+    <div class="bg-white rounded-xl shadow p-5">
+      <h2 class="text-lg font-semibold text-slate-800 mb-3">Preview: SKU & LFrozenPeriod</h2>
+      <div class="scroll-x max-h-72 overflow-y-auto border rounded">
+        <table id="tblFrozen" class="min-w-full"></table>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow p-5">
+      <h2 class="text-lg font-semibold text-slate-800 mb-3">Preview: SKU × Week1..Week52 (first 20 SKUs)</h2>
+      <div class="scroll-x max-h-96 overflow-y-auto border rounded">
+        <table id="tblWeekly" class="min-w-full"></table>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">
+        Each week column represents a Sunday–Saturday period. Column header shows the Saturday (week-ending) date.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const fileInput = document.getElementById('fileInput');
+  const statusEl = document.getElementById('status');
+  const weekOrderSel = document.getElementById('weekOrder');
+
+  let frozenCSV = '';
+  let weeklyCSV = '';
+
+  fileInput.addEventListener('change', handleFile);
+  weekOrderSel.addEventListener('change', () => {
+    if (fileInput.files && fileInput.files[0]) handleFile({target: fileInput});
+  });
+
+  document.getElementById('dlFrozen').addEventListener('click', () => downloadCSV(frozenCSV, 'SKU_LFrozenPeriod.csv'));
+  document.getElementById('dlWeekly').addEventListener('click', () => downloadCSV(weeklyCSV, 'SKU_Weekly52.csv'));
+
+  function setStatus(msg, isError=false){
+    statusEl.textContent = msg;
+    statusEl.className = 'mt-3 text-sm ' + (isError ? 'text-red-600' : 'text-slate-600');
+  }
+
+  // Normalize column name (trim + lowercase + collapse spaces)
+  function norm(s){ return String(s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
+
+  function findColumn(row, candidates){
+    const keys = Object.keys(row);
+    for (const c of candidates){
+      const cn = norm(c);
+      for (const k of keys){
+        if (norm(k) === cn) return k;
+      }
+    }
+    return null;
+  }
+
+  // Parse a date cell which could be a JS Date, a number (Excel serial), or a string
+  function parseDate(v){
+    if (v == null || v === '') return null;
+    if (v instanceof Date) return new Date(v.getFullYear(), v.getMonth(), v.getDate());
+    if (typeof v === 'number'){
+      // Excel serial date -> JS
+      const epoch = new Date(Date.UTC(1899,11,30));
+      const d = new Date(epoch.getTime() + v*86400000);
+      return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    }
+    const s = String(v).trim();
+    // Try m/d/yyyy or d/m/yyyy or yyyy-mm-dd
+    let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if (m){
+      let a=+m[1], b=+m[2], y=+m[3];
+      if (y<100) y += 2000;
+      // Assume M/D/Y (as in the example 3/10/2022)
+      return new Date(y, a-1, b);
+    }
+    m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+    const d = new Date(s);
+    if (!isNaN(d)) return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    return null;
+  }
+
+  function getSaturday(d){
+    // Sun=0..Sat=6, week Sun-Sat, Saturday is the end of week
+    const day = d.getDay();
+    const diff = 6 - day;
+    const s = new Date(d.getFullYear(), d.getMonth(), d.getDate()+diff);
+    return s;
+  }
+
+  function fmtDate(d){
+    if (!d) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${dd}`;
+  }
+
+  function csvEscape(v){
+    if (v == null) return '';
+    const s = String(v);
+    if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+    return s;
+  }
+
+  function toCSV(rows){
+    return rows.map(r => r.map(csvEscape).join(',')).join('\r\n');
+  }
+
+  function downloadCSV(content, filename){
+    const blob = new Blob([content], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleFile(e){
+    const file = e.target.files[0];
+    if (!file) return;
+    setStatus('Reading file...');
+    try{
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, {cellDates:true});
+      const firstSheet = wb.SheetNames[0];
+      const ws = wb.Sheets[firstSheet];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:null, raw:true});
+      if (!rows.length){ setStatus('Sheet is empty.', true); return; }
+
+      const sample = rows[0];
+      const colItem   = findColumn(sample, ['Item Number','ItemNumber','Item No','Item_Number','SKU']);
+      const colFrozen = findColumn(sample, ['Frozen period','FrozenPeriod','Frozen_Period','LFrozenPeriod']);
+      const colDate   = findColumn(sample, ['Order Date','OrderDate','Order_Date']);
+      const colQty    = findColumn(sample, ['Order qty','Order Qty','OrderQty','Order_Qty','Qty','Quantity']);
+
+      if (!colItem || !colFrozen || !colDate || !colQty){
+        setStatus(`Missing required columns. Found: Item=${colItem}, Frozen=${colFrozen}, Date=${colDate}, Qty=${colQty}`, true);
+        return;
+      }
+
+      // Build SKU -> LFrozenPeriod map (first non-null seen)
+      const frozenMap = new Map();
+      // parsed rows
+      const parsed = [];
+      let minDate=null, maxDate=null;
+
+      for (const r of rows){
+        const sku = r[colItem];
+        if (sku == null || sku === '') continue;
+        const skuStr = String(sku).trim();
+        const fz = r[colFrozen];
+        if (!frozenMap.has(skuStr) && fz != null && fz !== '') frozenMap.set(skuStr, fz);
+        else if (!frozenMap.has(skuStr)) frozenMap.set(skuStr, '');
+
+        const d = parseDate(r[colDate]);
+        const q = Number(r[colQty]) || 0;
+        if (!d) continue;
+        parsed.push({sku: skuStr, date: d, qty: q});
+        if (!minDate || d < minDate) minDate = d;
+        if (!maxDate || d > maxDate) maxDate = d;
+      }
+
+      if (!maxDate){ setStatus('No valid Order Date found.', true); return; }
+
+      // Anchor: Saturday of the week containing maxDate = Week52 end
+      const anchorSat = getSaturday(maxDate);
+      // Week ends: index 0..51, where index 51 = anchor (most recent)
+      // weekEndDates[i] = anchor - (51 - i) * 7 days  -> so i=0 oldest, i=51 newest
+      const weekEnds = [];
+      for (let i=0; i<52; i++){
+        const d = new Date(anchorSat.getFullYear(), anchorSat.getMonth(), anchorSat.getDate() - (51-i)*7);
+        weekEnds.push(d);
+      }
+      const startSat = weekEnds[0]; // oldest Saturday
+      // Earliest date included: startSat - 6 days (the Sunday)
+      const startSun = new Date(startSat.getFullYear(), startSat.getMonth(), startSat.getDate()-6);
+
+      // Aggregate
+      // For each parsed row in [startSun, anchorSat], compute week index from its Saturday
+      // weekIndex = round((satOfRow - startSat)/7days)
+      const skus = Array.from(frozenMap.keys()).sort();
+      const weekAgg = new Map(); // sku -> Array(52) of numbers
+      for (const s of skus) weekAgg.set(s, new Array(52).fill(0));
+
+      for (const row of parsed){
+        if (row.date < startSun || row.date > anchorSat) continue;
+        const sat = getSaturday(row.date);
+        const idx = Math.round((sat - startSat) / (7*86400000));
+        if (idx < 0 || idx > 51) continue;
+        const arr = weekAgg.get(row.sku);
+        if (arr) arr[idx] += row.qty;
+      }
+
+      // Build CSV 1
+      const frozenRows = [['SKU','LFrozenPeriod']];
+      for (const s of skus) frozenRows.push([s, frozenMap.get(s)]);
+      frozenCSV = toCSV(frozenRows);
+
+      // Build CSV 2 according to selected order
+      const order = weekOrderSel.value; // asc: Week1=oldest; desc: Week1=newest
+      const header = ['SKU'];
+      const indexOrder = []; // data column index (0..51) for Week1..Week52
+      for (let w=1; w<=52; w++){
+        header.push('Week'+w);
+        if (order === 'asc') indexOrder.push(w-1);      // Week1 -> idx 0 (oldest)
+        else indexOrder.push(52-w);                      // Week1 -> idx 51 (newest)
+      }
+      const weeklyRows = [header];
+      for (const s of skus){
+        const arr = weekAgg.get(s);
+        const row = [s];
+        for (const idx of indexOrder) row.push(arr[idx]);
+        weeklyRows.push(row);
+      }
+      weeklyCSV = toCSV(weeklyRows);
+
+      // Update summary
+      document.getElementById('summary').classList.remove('hidden');
+      document.getElementById('downloads').classList.remove('hidden');
+      document.getElementById('previewSection').classList.remove('hidden');
+      document.getElementById('sumRows').textContent = rows.length.toLocaleString();
+      document.getElementById('sumSkus').textContent = skus.length.toLocaleString();
+      document.getElementById('sumMin').textContent = fmtDate(minDate);
+      document.getElementById('sumMax').textContent = fmtDate(maxDate);
+      document.getElementById('sumAnchor').textContent = fmtDate(anchorSat) + '  (week containing last Order Date)';
+      document.getElementById('sumStart').textContent = fmtDate(startSat) + '  (Sun: ' + fmtDate(startSun) + ')';
+
+      // Preview tables
+      renderTable('tblFrozen', frozenRows, 200);
+      // Weekly preview: header with dates below Week# so user sees the mapping
+      const datedHeader = ['SKU'];
+      for (let w=1; w<=52; w++){
+        const idx = order === 'asc' ? (w-1) : (52-w);
+        datedHeader.push('Week'+w+' ('+fmtDate(weekEnds[idx])+')');
+      }
+      const previewWeekly = [datedHeader];
+      const limit = Math.min(20, skus.length);
+      for (let i=0; i<limit; i++){
+        const s = skus[i];
+        const arr = weekAgg.get(s);
+        const row = [s];
+        for (const idx of indexOrder) row.push(arr[idx]);
+        previewWeekly.push(row);
+      }
+      renderTable('tblWeekly', previewWeekly);
+
+      setStatus(`Done. Parsed ${rows.length} rows, ${skus.length} unique SKUs.`);
+    }catch(err){
+      console.error(err);
+      setStatus('Error: ' + err.message, true);
+    }
+  }
+
+  function renderTable(id, rows, rowLimit){
+    const tbl = document.getElementById(id);
+    tbl.innerHTML = '';
+    if (!rows.length) return;
+    const thead = document.createElement('thead');
+    const trh = document.createElement('tr');
+    for (const h of rows[0]){
+      const th = document.createElement('th');
+      th.textContent = h;
+      trh.appendChild(th);
+    }
+    thead.appendChild(trh);
+    tbl.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    const lim = rowLimit ? Math.min(rows.length, rowLimit+1) : rows.length;
+    for (let i=1; i<lim; i++){
+      const tr = document.createElement('tr');
+      for (const c of rows[i]){
+        const td = document.createElement('td');
+        td.textContent = c;
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    tbl.appendChild(tbody);
+  }
+})();
+</script>
+</body>
+</html>
