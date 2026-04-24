@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demand Planner Pro — Probabilistic Forecasting Suite</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .num { font-variant-numeric: tabular-nums; }
+  .scroll-fade::-webkit-scrollbar { height: 6px; width: 6px; }
+  .scroll-fade::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  details > summary { list-style: none; cursor: pointer; }
+  details > summary::-webkit-details-marker { display: none; }
+  .step-ring { background: conic-gradient(#4f46e5 var(--p, 0%), #e2e8f0 0%); }
+</style>
+</head>
+<body class="bg-slate-100 text-slate-900">
+
+<!-- TOP NAVIGATION -->
+<nav class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 bg-gradient-to-br from-indigo-600 to-blue-700 rounded-lg flex items-center justify-center text-white font-bold shadow">DP</div>
+      <div>
+        <div class="font-bold text-slate-900 leading-tight">Demand Planner Pro</div>
+        <div class="text-xs text-slate-500">Probabilistic Forecasting Suite</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-4 text-sm">
+      <div class="hidden md:block text-right">
+        <div class="text-xs text-slate-500">Reporting period</div>
+        <div class="font-semibold text-slate-700" id="navPeriod">— — —</div>
+      </div>
+      <button onclick="resetAll()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-md font-medium border border-slate-200">↺ New session</button>
+    </div>
+  </div>
+</nav>
+
+<!-- STEPPER -->
+<div class="bg-white border-b border-slate-200">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+    <div class="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+      <div id="stepDot1" class="flex items-center gap-2 font-medium text-indigo-700">
+        <div class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold">1</div>
+        <span>Upload data</span>
+      </div>
+      <div class="flex-1 h-px bg-slate-200"></div>
+      <div id="stepDot2" class="flex items-center gap-2 font-medium text-slate-400">
+        <div class="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold">2</div>
+        <span>Configure forecast</span>
+      </div>
+      <div class="flex-1 h-px bg-slate-200"></div>
+      <div id="stepDot3" class="flex items-center gap-2 font-medium text-slate-400">
+        <div class="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold">3</div>
+        <span>Review & act</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="max-w-7xl mx-auto p-4 sm:p-6 space-y-5">
+
+  <!-- STEP 1: DATA SOURCE -->
+  <section id="step1" class="bg-white border border-slate-200 rounded-xl shadow-sm">
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
+      <div>
+        <h2 class="font-semibold text-slate-900">Step 1 · Upload your weekly demand history</h2>
+        <p class="text-xs text-slate-500 mt-0.5">CSV from the weekly pivot tool (Week, Start Date, End Date, SKU columns)</p>
+      </div>
+      <div id="step1Status" class="hidden items-center gap-1.5 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded font-medium">
+        <span>✓</span> Data loaded
+      </div>
+    </div>
+    <div class="p-5">
+      <div class="flex gap-3 flex-wrap">
+        <label class="flex-1 min-w-64 cursor-pointer bg-slate-50 hover:bg-slate-100 border-2 border-dashed border-slate-300 rounded-lg px-5 py-4 text-sm text-center transition">
+          <input type="file" id="csvInput" accept=".csv" class="hidden">
+          <div class="text-slate-600 font-medium" id="fileLabel">Click to upload CSV file</div>
+          <div class="text-xs text-slate-400 mt-1">Minimum 104 weeks (two seasonal cycles)</div>
+        </label>
+        <button onclick="loadDemo()" class="bg-white hover:bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 text-sm font-medium text-slate-700">
+          ▶ Try with demo data<br><span class="text-xs text-slate-500 font-normal">156 weeks · 3 SKUs</span>
+        </button>
+      </div>
+      <div id="dataInfo" class="mt-4 hidden grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+      <div id="errorMsg" class="hidden mt-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-md p-3 text-sm"></div>
+    </div>
+  </section>
+
+  <!-- STEP 2: CONFIGURATION -->
+  <section id="configSection" class="hidden bg-white border border-slate-200 rounded-xl shadow-sm">
+    <div class="px-5 py-4 border-b border-slate-100">
+      <h2 class="font-semibold text-slate-900">Step 2 · Configure your forecast</h2>
+      <p class="text-xs text-slate-500 mt-0.5">Choose product, training window, and forecasting models</p>
+    </div>
+    <div class="p-5 space-y-5">
+      <div class="grid md:grid-cols-2 gap-5">
+        <div>
+          <label class="text-xs font-semibold text-slate-700 block mb-1.5">PRODUCT / SKU</label>
+          <select id="skuSelect" class="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-sm font-medium focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"></select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-700 block mb-1.5">
+            TRAINING WINDOW <span id="trainLenNote" class="text-slate-400 font-normal"></span>
+          </label>
+          <div class="flex gap-2 items-center">
+            <input type="range" id="trainLenSlider" class="flex-1 accent-indigo-600">
+            <div class="flex items-center gap-1">
+              <input type="number" id="trainLenInput" class="w-20 bg-white border border-slate-300 rounded-md px-2 py-1.5 text-sm font-medium text-center num">
+              <span class="text-xs text-slate-500">wk</span>
+            </div>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">Remaining weeks are reserved for model accuracy testing (hold-out).</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-xs font-semibold text-slate-700">MODELS TO EVALUATE</label>
+          <span class="text-xs text-slate-400">Tick all that apply · one recommended model will be selected automatically</span>
+        </div>
+        <div class="grid md:grid-cols-2 gap-3">
+
+          <label class="cursor-pointer border-2 border-slate-200 hover:border-indigo-300 rounded-lg p-3 bg-slate-50 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50/40 transition block">
+            <div class="flex items-start gap-2">
+              <input type="checkbox" id="mBaseline" checked class="accent-indigo-600 mt-1">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-semibold text-sm text-slate-800">Baseline</span>
+                  <span class="text-xs bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Current method</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Repeats last year's pattern multiplied by a manual growth factor. Simple, transparent, widely used.</p>
+                <div class="mt-2 flex items-center gap-2 text-xs">
+                  <span class="text-slate-500">Growth ×</span>
+                  <input type="number" step="0.05" id="pBaselineMult" value="1.00" class="w-16 bg-white border border-slate-300 rounded px-2 py-1 num">
+                </div>
+              </div>
+            </div>
+          </label>
+
+          <label class="cursor-pointer border-2 border-slate-200 hover:border-indigo-300 rounded-lg p-3 bg-slate-50 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50/40 transition block">
+            <div class="flex items-start gap-2">
+              <input type="checkbox" id="mAutoETS" checked class="accent-indigo-600 mt-1">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-semibold text-sm text-slate-800">AutoETS</span>
+                  <span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Industry standard</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Automatically selects the best exponential-smoothing structure. Fast, reliable, resistant to noise.</p>
+              </div>
+            </div>
+          </label>
+
+          <label class="cursor-pointer border-2 border-slate-200 hover:border-indigo-300 rounded-lg p-3 bg-slate-50 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50/40 transition block">
+            <div class="flex items-start gap-2">
+              <input type="checkbox" id="mProphet" checked class="accent-indigo-600 mt-1">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-semibold text-sm text-slate-800">Prophet</span>
+                  <span class="text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">Trend-flexible</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Captures business trend breaks (e.g., promos, pricing shifts). Great for growing or shifting products.</p>
+                <details class="mt-1.5">
+                  <summary class="text-xs text-indigo-600 font-medium hover:underline">Advanced settings</summary>
+                  <div class="grid grid-cols-3 gap-1 text-xs text-slate-500 mt-1.5">
+                    <div><span class="block">Changepoints</span><input type="number" min="5" max="30" id="pProphetCp" value="15" class="w-full bg-white border border-slate-300 rounded px-1 py-1 mt-0.5 num"></div>
+                    <div><span class="block">Fourier K</span><input type="number" min="3" max="15" id="pProphetK" value="10" class="w-full bg-white border border-slate-300 rounded px-1 py-1 mt-0.5 num"></div>
+                    <div><span class="block">Flexibility</span><input type="number" step="0.05" min="0.01" id="pProphetTau" value="0.5" class="w-full bg-white border border-slate-300 rounded px-1 py-1 mt-0.5 num"></div>
+                  </div>
+                </details>
+              </div>
+            </div>
+          </label>
+
+          <label class="cursor-pointer border-2 border-slate-200 hover:border-indigo-300 rounded-lg p-3 bg-slate-50 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50/40 transition block">
+            <div class="flex items-start gap-2">
+              <input type="checkbox" id="mBSTS" checked class="accent-indigo-600 mt-1">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-semibold text-sm text-slate-800">BSTS</span>
+                  <span class="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">Rich uncertainty</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Bayesian model that produces realistic risk ranges. Best when safety stock matters.</p>
+                <details class="mt-1.5">
+                  <summary class="text-xs text-indigo-600 font-medium hover:underline">Advanced settings</summary>
+                  <div class="grid grid-cols-3 gap-1 text-xs text-slate-500 mt-1.5">
+                    <div><span class="block">Harmonics</span><input type="number" min="1" max="6" id="pBstsK" value="3" class="w-full bg-white border border-slate-300 rounded px-1 py-1 mt-0.5 num"></div>
+                    <div><span class="block">Level σ²</span><input type="number" step="0.005" min="0.001" id="pBstsLvl" value="0.02" class="w-full bg-white border border-slate-300 rounded px-1 py-1 mt-0.5 num"></div>
+                    <div><span class="block">Slope σ²</span><input type="number" step="0.001" min="0.0001" id="pBstsSlp" value="0.002" class="w-full bg-white border border-slate-300 rounded px-1 py-1 mt-0.5 num"></div>
+                  </div>
+                </details>
+              </div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <button id="runBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg shadow-sm transition flex items-center justify-center gap-2">
+        <span>Generate 52-week probabilistic forecast</span>
+        <span class="text-indigo-200">→</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- STEP 3: RESULTS -->
+  <section id="resultsSection" class="hidden space-y-5">
+
+    <!-- Executive summary banner -->
+    <div class="bg-gradient-to-br from-indigo-900 via-indigo-800 to-blue-900 text-white rounded-xl shadow-sm overflow-hidden">
+      <div class="p-5 sm:p-6">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="text-xs font-semibold text-indigo-200 uppercase tracking-wide">Executive summary</div>
+          <div id="skuBadge" class="text-xs bg-white/15 text-white px-2 py-0.5 rounded border border-white/20"></div>
+        </div>
+        <p id="execSummaryText" class="text-base sm:text-lg leading-relaxed text-indigo-50"></p>
+      </div>
+      <div class="bg-indigo-950/40 border-t border-indigo-700/40 px-5 sm:px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div>
+          <div class="text-xs text-indigo-200 uppercase tracking-wide font-medium">Annual forecast</div>
+          <div class="text-2xl font-bold text-white num mt-1" id="kpiAnnual">—</div>
+          <div class="text-xs text-indigo-200 mt-0.5 num" id="kpiAnnualRange">—</div>
+        </div>
+        <div>
+          <div class="text-xs text-indigo-200 uppercase tracking-wide font-medium">Peak demand week</div>
+          <div class="text-2xl font-bold text-white num mt-1" id="kpiPeak">—</div>
+          <div class="text-xs text-indigo-200 mt-0.5" id="kpiPeakDate">—</div>
+        </div>
+        <div>
+          <div class="text-xs text-indigo-200 uppercase tracking-wide font-medium">vs. prior 52 weeks</div>
+          <div class="text-2xl font-bold num mt-1" id="kpiYoy">—</div>
+          <div class="text-xs text-indigo-200 mt-0.5" id="kpiYoyNote">—</div>
+        </div>
+        <div>
+          <div class="text-xs text-indigo-200 uppercase tracking-wide font-medium">Recommended model</div>
+          <div class="text-2xl font-bold text-white mt-1" id="kpiModel">—</div>
+          <div class="text-xs text-indigo-200 mt-0.5" id="kpiModelNote">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main forecast chart -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h3 class="font-semibold text-slate-900">Demand forecast — next 52 weeks</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Shaded bands show likely demand ranges; wider = more uncertain</p>
+        </div>
+        <div class="flex items-center gap-3 text-xs">
+          <label class="flex items-center gap-1.5">
+            <input type="checkbox" id="showOthers" class="accent-indigo-600">
+            <span class="text-slate-600">Overlay other models</span>
+          </label>
+          <select id="fanModelSelect" class="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-medium"></select>
+        </div>
+      </div>
+      <div class="p-5">
+        <div style="position: relative; height: 420px;">
+          <canvas id="forecastChart"></canvas>
+        </div>
+        <div class="mt-3 flex items-center gap-4 flex-wrap text-xs text-slate-600">
+          <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded bg-slate-700"></div>Historical actuals</div>
+          <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded" style="background:#4338ca"></div>Forecast (median)</div>
+          <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded opacity-60" style="background:#818cf8"></div>50% likely range</div>
+          <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded opacity-30" style="background:#818cf8"></div>80% likely range</div>
+          <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded opacity-15" style="background:#818cf8"></div>95% likely range</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Period breakdown & Annual distribution -->
+    <div class="grid lg:grid-cols-5 gap-5">
+      <div class="lg:col-span-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <div class="px-5 py-4 border-b border-slate-100">
+          <h3 class="font-semibold text-slate-900">Monthly buying plan</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Aggregated forecast by calendar month · error bars show 80% likely range</p>
+        </div>
+        <div class="p-5">
+          <div style="position: relative; height: 280px;">
+            <canvas id="monthChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <div class="px-5 py-4 border-b border-slate-100">
+          <h3 class="font-semibold text-slate-900">Annual volume — risk profile</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Distribution of possible 52-week totals</p>
+        </div>
+        <div class="p-5">
+          <div style="position: relative; height: 280px;">
+            <canvas id="distChart"></canvas>
+          </div>
+          <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+            <div class="bg-rose-50 border border-rose-200 rounded p-2">
+              <div class="text-xs text-rose-600 font-medium">Low case (P10)</div>
+              <div class="text-sm font-bold text-rose-700 num" id="annualLow">—</div>
+            </div>
+            <div class="bg-slate-100 border border-slate-200 rounded p-2">
+              <div class="text-xs text-slate-600 font-medium">Expected (P50)</div>
+              <div class="text-sm font-bold text-slate-800 num" id="annualMed">—</div>
+            </div>
+            <div class="bg-emerald-50 border border-emerald-200 rounded p-2">
+              <div class="text-xs text-emerald-600 font-medium">High case (P90)</div>
+              <div class="text-sm font-bold text-emerald-700 num" id="annualHigh">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Service level planner -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm">
+      <div class="px-5 py-4 border-b border-slate-100">
+        <h3 class="font-semibold text-slate-900">Service level & safety stock planner</h3>
+        <p class="text-xs text-slate-500 mt-0.5">How much stock to hold to meet customer demand at your target service level</p>
+      </div>
+      <div class="p-5 grid md:grid-cols-3 gap-5">
+        <div class="space-y-4">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-xs font-semibold text-slate-700">TARGET SERVICE LEVEL</label>
+              <span id="slValue" class="text-sm font-bold text-indigo-600 num">95%</span>
+            </div>
+            <input type="range" id="slSlider" min="80" max="99" value="95" class="w-full accent-indigo-600">
+            <div class="flex justify-between text-xs text-slate-400 num mt-0.5"><span>80%</span><span>90%</span><span>99%</span></div>
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-xs font-semibold text-slate-700">LEAD TIME</label>
+              <span id="ltValue" class="text-sm font-bold text-indigo-600 num">4 weeks</span>
+            </div>
+            <input type="range" id="ltSlider" min="1" max="12" value="4" class="w-full accent-indigo-600">
+            <div class="flex justify-between text-xs text-slate-400 num mt-0.5"><span>1 wk</span><span>6 wk</span><span>12 wk</span></div>
+          </div>
+          <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-900">
+            <strong>What this means:</strong> if you place orders that cover <span id="ltInline" class="font-semibold">4 weeks</span> of demand, holding the stock level shown will let you meet customer demand <span id="slInline" class="font-semibold">95%</span> of the time.
+          </div>
+        </div>
+        <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="border border-slate-200 rounded-lg p-4">
+            <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Expected demand<br>over lead time</div>
+            <div class="text-2xl font-bold text-slate-900 num mt-2" id="slExpected">—</div>
+            <div class="text-xs text-slate-500 mt-1">50th-percentile forecast</div>
+          </div>
+          <div class="border border-slate-200 rounded-lg p-4">
+            <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Safety stock<br>required</div>
+            <div class="text-2xl font-bold text-amber-600 num mt-2" id="slSafety">—</div>
+            <div class="text-xs text-slate-500 mt-1">Buffer above expected</div>
+          </div>
+          <div class="border-2 border-indigo-500 bg-indigo-50 rounded-lg p-4">
+            <div class="text-xs text-indigo-700 font-semibold uppercase tracking-wide">📦 Target stock<br>level</div>
+            <div class="text-2xl font-bold text-indigo-700 num mt-2" id="slReorder">—</div>
+            <div class="text-xs text-indigo-600 mt-1">Hold at lead-time start</div>
+          </div>
+          <div class="sm:col-span-3 bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
+            At a 99% service level you would need <span id="sl99" class="font-semibold text-slate-900">—</span> in stock.
+            Each 1-point increase in service level above 95% costs approximately <span id="slMarginal" class="font-semibold text-slate-900">—</span> extra units in holding.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Model comparison -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h3 class="font-semibold text-slate-900">Model accuracy scorecard</h3>
+          <p class="text-xs text-slate-500 mt-0.5" id="scorecardSub">Back-test performance on hold-out weeks</p>
+        </div>
+      </div>
+      <div class="p-5">
+        <div id="scorecardBody"></div>
+      </div>
+    </div>
+
+    <!-- Managerial insights -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm">
+      <div class="px-5 py-4 border-b border-slate-100">
+        <h3 class="font-semibold text-slate-900">📋 Recommended actions</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Plain-language insights for your next planning cycle</p>
+      </div>
+      <div class="p-5">
+        <ul id="insightsList" class="space-y-2.5"></ul>
+      </div>
+    </div>
+
+  </section>
+</main>
+
+<footer class="max-w-7xl mx-auto px-4 sm:px-6 py-6 text-xs text-slate-400">
+  Demand Planner Pro · All computations run locally in your browser. No data leaves your machine.
+</footer>
+
+<script>
+/* =============================================================
+   CSV parsing
+   ============================================================= */
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+  const parseRow = (line) => {
+    const out = []; let cur = ''; let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (q) { if (c === '"') { if (line[i+1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+      else { if (c === ',') { out.push(cur); cur = ''; } else if (c === '"') q = true; else cur += c; }
+    }
+    out.push(cur);
+    return out.map(s => s.trim());
+  };
+  return { headers: parseRow(lines[0]), rows: lines.slice(1).map(parseRow) };
+}
+
+/* =============================================================
+   Math helpers
+   ============================================================= */
+function mean(a) { return a.reduce((s, v) => s + v, 0) / a.length; }
+function variance(a) { const m = mean(a); return a.reduce((s, v) => s + (v - m) ** 2, 0) / Math.max(1, a.length - 1); }
+function clamp0(x) { return x < 0 ? 0 : x; }
+function randN() { let u = 0, v = 0; while (u === 0) u = Math.random(); while (v === 0) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function quantile(sorted, q) { const i = Math.max(0, Math.min(sorted.length - 1, Math.floor(q * (sorted.length - 1)))); return sorted[i]; }
+function fmtInt(v) { if (v === null || v === undefined || isNaN(v)) return '—'; return Math.round(v).toLocaleString(); }
+function fmtPct(v, d = 1) { if (v === null || v === undefined || isNaN(v)) return '—'; return (v >= 0 ? '+' : '') + v.toFixed(d) + '%'; }
+
+function solveLinear(A, b) {
+  const n = A.length;
+  const M = A.map((r, i) => [...r, b[i]]);
+  for (let i = 0; i < n; i++) {
+    let mx = i;
+    for (let k = i + 1; k < n; k++) if (Math.abs(M[k][i]) > Math.abs(M[mx][i])) mx = k;
+    [M[i], M[mx]] = [M[mx], M[i]];
+    if (Math.abs(M[i][i]) < 1e-12) M[i][i] = 1e-12;
+    for (let k = i + 1; k < n; k++) {
+      const f = M[k][i] / M[i][i];
+      for (let j = i; j <= n; j++) M[k][j] -= f * M[i][j];
+    }
+  }
+  const x = Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) {
+    let s = M[i][n];
+    for (let j = i + 1; j < n; j++) s -= M[i][j] * x[j];
+    x[i] = s / M[i][i];
+  }
+  return x;
+}
+function matMul(A, B) {
+  const r = A.length, c = B[0].length, k = B.length;
+  const C = Array.from({ length: r }, () => Array(c).fill(0));
+  for (let i = 0; i < r; i++) for (let j = 0; j < c; j++) { let s = 0; for (let l = 0; l < k; l++) s += A[i][l] * B[l][j]; C[i][j] = s; }
+  return C;
+}
+function matT(A) { return A[0].map((_, i) => A.map(row => row[i])); }
+function matVec(M, v) { return M.map(row => row.reduce((s, x, j) => s + x * v[j], 0)); }
+function dotV(a, b) { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; }
+
+function bootstrapSamples(meanArr, residuals, n = 500) {
+  const H = meanArr.length, R = residuals.length;
+  const out = [];
+  if (R === 0) { for (let s = 0; s < n; s++) out.push([...meanArr]); return out; }
+  for (let s = 0; s < n; s++) {
+    const p = [];
+    for (let h = 0; h < H; h++) {
+      const r = residuals[Math.floor(Math.random() * R)];
+      p.push(clamp0(meanArr[h] + r));
+    }
+    out.push(p);
+  }
+  return out;
+}
+
+/* =============================================================
+   Model 1: Baseline
+   ============================================================= */
+function baselineModel(data, horizon, mult) {
+  const season = 52, n = data.length;
+  const last = data.slice(n - season);
+  const mu = [];
+  for (let h = 0; h < horizon; h++) mu.push(last[h % season] * mult);
+  const residuals = [];
+  if (n >= 2 * season) { for (let i = n - season; i < n; i++) residuals.push(data[i] - data[i - season]); }
+  else { const m = mean(data); for (const v of data) residuals.push(v - m); }
+  return { mean: mu, samples: bootstrapSamples(mu, residuals), note: `Last-52 × ${mult}` };
+}
+
+/* =============================================================
+   Model 2: AutoETS
+   ============================================================= */
+function initialETS(data, hasSeasonal, m) {
+  if (hasSeasonal && data.length >= 2 * m) {
+    const y1 = mean(data.slice(0, m)), y2 = mean(data.slice(m, 2 * m));
+    const L0 = y1, B0 = (y2 - y1) / m;
+    const S0 = Array(m).fill(0);
+    for (let i = 0; i < m; i++) S0[i] = data[i] - L0;
+    const sm = mean(S0);
+    for (let i = 0; i < m; i++) S0[i] -= sm;
+    return { L0, B0, S0 };
+  } else {
+    return { L0: data[0], B0: data.length > 1 ? (data[1] - data[0]) : 0, S0: null };
+  }
+}
+function runETS(data, params, variant, m = 52) {
+  const { alpha, beta, gamma, phi } = params;
+  const hasTrend = variant.trend !== 'N', damped = variant.trend === 'Ad', hasSeas = variant.seasonal === 'A';
+  const init = initialETS(data, hasSeas, m);
+  let L = init.L0, B = init.B0;
+  const S = hasSeas ? [...init.S0] : null;
+  const fitted = [], residuals = [];
+  const ph = damped ? phi : 1;
+  for (let t = 0; t < data.length; t++) {
+    const sPrev = hasSeas ? S[t % m] : 0;
+    const bPart = hasTrend ? ph * B : 0;
+    const yHat = L + bPart + sPrev;
+    fitted.push(yHat);
+    const err = data[t] - yHat;
+    residuals.push(err);
+    const Lnew = hasSeas ? alpha * (data[t] - sPrev) + (1 - alpha) * (L + bPart)
+                         : alpha * data[t] + (1 - alpha) * (L + bPart);
+    let Bnew = B;
+    if (hasTrend) Bnew = beta * (Lnew - L) + (1 - beta) * ph * B;
+    if (hasSeas) S[t % m] = gamma * (data[t] - L - bPart) + (1 - gamma) * sPrev;
+    L = Lnew; B = Bnew;
+  }
+  return { L, B, S, residuals, fitted };
+}
+function forecastETS(state, horizon, variant, phi, m = 52, nTrain) {
+  const { L, B, S } = state;
+  const hasTrend = variant.trend !== 'N', damped = variant.trend === 'Ad', hasSeas = variant.seasonal === 'A';
+  const mu = []; let dampSum = 0;
+  for (let h = 1; h <= horizon; h++) {
+    let trendTerm = 0;
+    if (hasTrend) { if (damped) { dampSum += Math.pow(phi, h); trendTerm = dampSum * B; } else trendTerm = h * B; }
+    const seas = hasSeas ? S[(nTrain + h - 1) % m] : 0;
+    mu.push(clamp0(L + trendTerm + seas));
+  }
+  return mu;
+}
+function autoETSModel(data, horizon, m = 52) {
+  const variants = [
+    { name: 'ANN', trend: 'N', seasonal: 'N', kParams: 1 },
+    { name: 'AAN', trend: 'A', seasonal: 'N', kParams: 2 },
+    { name: 'AAdN', trend: 'Ad', seasonal: 'N', kParams: 3 },
+    { name: 'ANA', trend: 'N', seasonal: 'A', kParams: 2 },
+    { name: 'AAA', trend: 'A', seasonal: 'A', kParams: 3 },
+    { name: 'AAdA', trend: 'Ad', seasonal: 'A', kParams: 4 },
+  ];
+  const alphaGrid = [0.05, 0.15, 0.3, 0.5, 0.7, 0.9];
+  const betaGrid = [0.01, 0.05, 0.15, 0.3];
+  const gammaGrid = [0.05, 0.15, 0.3, 0.5];
+  const phiGrid = [0.85, 0.92, 0.98];
+  const n = data.length;
+  let best = null;
+  for (const v of variants) {
+    const alphas = alphaGrid;
+    const betas = v.trend === 'N' ? [0] : betaGrid;
+    const gammas = v.seasonal === 'N' ? [0] : gammaGrid;
+    const phis = v.trend === 'Ad' ? phiGrid : [1];
+    if (v.seasonal === 'A' && n < 2 * m) continue;
+    for (const a of alphas) for (const b of betas) for (const g of gammas) for (const p of phis) {
+      const res = runETS(data, { alpha: a, beta: b, gamma: g, phi: p }, v, m);
+      let sse = 0; const burn = v.seasonal === 'A' ? m : 0; let cnt = 0;
+      for (let i = burn; i < res.residuals.length; i++) { sse += res.residuals[i] ** 2; cnt++; }
+      const logLikProxy = cnt * Math.log(sse / cnt + 1e-9);
+      const k = v.kParams + 1;
+      const aicc = logLikProxy + 2 * k + (2 * k * (k + 1)) / Math.max(1, cnt - k - 1);
+      if (!best || aicc < best.aicc) best = { aicc, variant: v, params: { alpha: a, beta: b, gamma: g, phi: p }, state: { L: res.L, B: res.B, S: res.S }, residuals: res.residuals.slice(burn) };
+    }
+  }
+  const mu = forecastETS(best.state, horizon, best.variant, best.params.phi, m, data.length);
+  return { mean: mu, samples: bootstrapSamples(mu, best.residuals), note: `ETS(${best.variant.name})` };
+}
+
+/* =============================================================
+   Model 3: Prophet
+   ============================================================= */
+function prophetModel(data, horizon, nChangepoints = 15, nFourier = 10, cpPriorScale = 0.5) {
+  const n = data.length, season = 52;
+  const cpRangeEnd = Math.floor(n * 0.8);
+  const cpLocs = [];
+  for (let i = 0; i < nChangepoints; i++) cpLocs.push(Math.floor((i + 1) * cpRangeEnd / (nChangepoints + 1)));
+  const buildRow = (t) => {
+    const row = [1, t];
+    for (const cp of cpLocs) row.push(t >= cp ? t - cp : 0);
+    for (let k = 1; k <= nFourier; k++) { row.push(Math.sin(2 * Math.PI * k * t / season)); row.push(Math.cos(2 * Math.PI * k * t / season)); }
+    return row;
+  };
+  const X = []; for (let t = 0; t < n; t++) X.push(buildRow(t));
+  const p = X[0].length;
+  const XtX = Array.from({ length: p }, () => Array(p).fill(0));
+  const Xty = Array(p).fill(0);
+  for (let i = 0; i < n; i++) for (let j = 0; j < p; j++) { Xty[j] += X[i][j] * data[i]; for (let k = 0; k < p; k++) XtX[j][k] += X[i][j] * X[i][k]; }
+  const lamCp = 1 / (cpPriorScale * cpPriorScale + 1e-9);
+  for (let i = 0; i < p; i++) { let lam = 0.001; if (i >= 2 && i < 2 + nChangepoints) lam = lamCp; else if (i >= 2 + nChangepoints) lam = 0.05; XtX[i][i] += lam; }
+  const beta = solveLinear(XtX, Xty);
+  const residuals = [];
+  for (let i = 0; i < n; i++) { let f = 0; for (let j = 0; j < p; j++) f += X[i][j] * beta[j]; residuals.push(data[i] - f); }
+  const mu = [];
+  for (let h = 1; h <= horizon; h++) { const row = buildRow(n + h - 1); let f = 0; for (let j = 0; j < p; j++) f += row[j] * beta[j]; mu.push(clamp0(f)); }
+  return { mean: mu, samples: bootstrapSamples(mu, residuals), note: `${nChangepoints} changepoints · ${nFourier} harmonics` };
+}
+
+/* =============================================================
+   Model 4: BSTS
+   ============================================================= */
+function bstsModel(data, horizon, K = 3, levelRatio = 0.02, slopeRatio = 0.002) {
+  const n = data.length, m = 52;
+  const dim = 2 + 2 * K;
+  const F = Array.from({ length: dim }, () => Array(dim).fill(0));
+  F[0][0] = 1; F[0][1] = 1; F[1][1] = 1;
+  for (let k = 1; k <= K; k++) {
+    const w = 2 * Math.PI * k / m;
+    const c = Math.cos(w), s = Math.sin(w);
+    const i = 2 + 2 * (k - 1);
+    F[i][i] = c; F[i][i + 1] = s; F[i + 1][i] = -s; F[i + 1][i + 1] = c;
+  }
+  const H = Array(dim).fill(0);
+  H[0] = 1; for (let k = 1; k <= K; k++) H[2 + 2 * (k - 1)] = 1;
+  const dv = Math.max(variance(data), 1);
+  const Rvar = dv * 0.10;
+  const Q = Array(dim).fill(0);
+  Q[0] = dv * levelRatio; Q[1] = dv * slopeRatio;
+  const seasVar = dv * 0.002;
+  for (let k = 0; k < K; k++) { Q[2 + 2 * k] = seasVar; Q[3 + 2 * k] = seasVar; }
+  let x = Array(dim).fill(0); x[0] = data[0];
+  let P = Array.from({ length: dim }, (_, i) => Array.from({ length: dim }, (_, j) => i === j ? dv * 10 : 0));
+  const residuals = [];
+  for (let t = 0; t < n; t++) {
+    const xP = matVec(F, x);
+    let PP = matMul(matMul(F, P), matT(F));
+    for (let i = 0; i < dim; i++) PP[i][i] += Q[i];
+    const yHat = dotV(H, xP);
+    const PHT = matVec(PP, H);
+    const S = dotV(H, PHT) + Rvar;
+    const Kg = PHT.map(v => v / S);
+    const innov = data[t] - yHat;
+    x = xP.map((v, i) => v + Kg[i] * innov);
+    const IKH = Array.from({ length: dim }, (_, i) => Array.from({ length: dim }, (_, j) => (i === j ? 1 : 0) - Kg[i] * H[j]));
+    P = matMul(IKH, PP);
+    if (t > 2 * m) residuals.push(innov);
+  }
+  const mu = [];
+  let xs = [...x];
+  for (let h = 0; h < horizon; h++) { xs = matVec(F, xs); mu.push(clamp0(dotV(H, xs))); }
+  const nSamp = 500;
+  const samples = [];
+  const sqQ = Q.map(Math.sqrt);
+  const sqR = Math.sqrt(Rvar);
+  const sqDiagP = Array(dim).fill(0);
+  for (let i = 0; i < dim; i++) sqDiagP[i] = Math.sqrt(Math.max(0, P[i][i]));
+  for (let s = 0; s < nSamp; s++) {
+    let xc = x.map((v, i) => v + sqDiagP[i] * randN());
+    const path = [];
+    for (let h = 0; h < horizon; h++) {
+      xc = matVec(F, xc);
+      for (let i = 0; i < dim; i++) xc[i] += sqQ[i] * randN();
+      const y = dotV(H, xc) + sqR * randN();
+      path.push(clamp0(y));
+    }
+    samples.push(path);
+  }
+  return { mean: mu, samples, note: `State dim=${dim} · K=${K} harmonics` };
+}
+
+/* =============================================================
+   Evaluation
+   ============================================================= */
+function evaluateModel(actual, meanArr, samples) {
+  const n = Math.min(actual.length, meanArr.length);
+  let se = 0, ae = 0, pctSum = 0, pctN = 0;
+  for (let i = 0; i < n; i++) {
+    const e = actual[i] - meanArr[i];
+    se += e * e; ae += Math.abs(e);
+    if (actual[i] !== 0) { pctSum += Math.abs(e / actual[i]); pctN++; }
+  }
+  const rmse = Math.sqrt(se / n), mae = ae / n;
+  const mape = pctN > 0 ? (pctSum / pctN) * 100 : NaN;
+  const levels = [0.1, 0.25, 0.5, 0.75, 0.9];
+  const pinball = Object.fromEntries(levels.map(t => [t, 0]));
+  let crpsSum = 0;
+  for (let i = 0; i < n; i++) {
+    const col = samples.map(r => r[i]).sort((a, b) => a - b);
+    const y = actual[i];
+    for (const tau of levels) {
+      const q = quantile(col, tau);
+      pinball[tau] += y >= q ? (y - q) * tau : (q - y) * (1 - tau);
+    }
+    const N = col.length;
+    let t1 = 0; for (const x of col) t1 += Math.abs(x - y); t1 /= N;
+    let t2 = 0; for (let k = 0; k < N; k++) t2 += col[k] * (2 * k - N + 1); t2 /= (N * N);
+    crpsSum += t1 - t2;
+  }
+  const pb = {}; let meanPb = 0;
+  for (const tau of levels) { pb[tau] = pinball[tau] / n; meanPb += pb[tau]; }
+  meanPb /= levels.length;
+  return { rmse, mae, mape, pinball: pb, meanPb, crps: crpsSum / n, levels };
+}
+
+/* =============================================================
+   State & UI bindings
+   ============================================================= */
+const state = { headers: [], weeks: [], startDates: [], endDates: [], skus: [], skuData: {}, totalWeeks: 0 };
+const charts = {};
+let lastResults = null;
+
+document.getElementById('csvInput').addEventListener('change', handleFile);
+document.getElementById('trainLenSlider').addEventListener('input', e => { document.getElementById('trainLenInput').value = e.target.value; updateTrainNote(); });
+document.getElementById('trainLenInput').addEventListener('input', e => { document.getElementById('trainLenSlider').value = e.target.value; updateTrainNote(); });
+document.getElementById('runBtn').addEventListener('click', runForecast);
+document.getElementById('fanModelSelect').addEventListener('change', () => { if (lastResults) renderForecastChart(lastResults); });
+document.getElementById('showOthers').addEventListener('change', () => { if (lastResults) renderForecastChart(lastResults); });
+document.getElementById('slSlider').addEventListener('input', updateServiceLevel);
+document.getElementById('ltSlider').addEventListener('input', updateServiceLevel);
+
+function showError(msg) { const el = document.getElementById('errorMsg'); el.textContent = msg; el.classList.remove('hidden'); }
+function hideError() { document.getElementById('errorMsg').classList.add('hidden'); }
+
+function setStep(n) {
+  const d1 = document.getElementById('stepDot1'), d2 = document.getElementById('stepDot2'), d3 = document.getElementById('stepDot3');
+  [d1, d2, d3].forEach((d, i) => {
+    const active = (i + 1) <= n;
+    d.className = 'flex items-center gap-2 font-medium ' + (active ? 'text-indigo-700' : 'text-slate-400');
+    d.querySelector('div').className = 'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ' + (active ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600');
+  });
+}
+
+function handleFile(e) {
+  hideError();
+  const f = e.target.files[0]; if (!f) return;
+  document.getElementById('fileLabel').textContent = '✓ ' + f.name;
+  const reader = new FileReader();
+  reader.onload = (ev) => { try { const { headers, rows } = parseCSV(ev.target.result); ingestData(headers, rows); } catch (err) { showError('Failed to parse CSV: ' + err.message); } };
+  reader.readAsText(f);
+}
+
+function ingestData(headers, rows) {
+  if (headers.length < 4) { showError('CSV must have Week, Start Date, End Date, and at least one SKU column.'); return; }
+  const skus = headers.slice(3);
+  const weeks = [], starts = [], ends = [];
+  const skuData = {};
+  skus.forEach(s => skuData[s] = []);
+  for (const r of rows) {
+    weeks.push(r[0]); starts.push(r[1]); ends.push(r[2]);
+    skus.forEach((s, i) => skuData[s].push(Number(r[3 + i]) || 0));
+  }
+  if (weeks.length < 104) { showError(`Two-cycle rule requires at least 104 weeks. Uploaded: ${weeks.length}.`); return; }
+  state.headers = headers; state.weeks = weeks; state.startDates = starts; state.endDates = ends;
+  state.skus = skus; state.skuData = skuData; state.totalWeeks = weeks.length;
+  initUIAfterData();
+}
+
+function initUIAfterData() {
+  const info = document.getElementById('dataInfo');
+  info.innerHTML = `
+    <div class="bg-slate-50 border border-slate-200 rounded-md p-3"><div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Total weeks</div><div class="text-lg font-bold text-slate-900 num mt-1">${state.totalWeeks}</div></div>
+    <div class="bg-slate-50 border border-slate-200 rounded-md p-3"><div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Products (SKUs)</div><div class="text-lg font-bold text-slate-900 num mt-1">${state.skus.length}</div></div>
+    <div class="bg-slate-50 border border-slate-200 rounded-md p-3"><div class="text-xs text-slate-500 font-medium uppercase tracking-wide">First week</div><div class="text-sm font-semibold text-slate-800 mt-1">${state.startDates[0] || state.weeks[0]}</div></div>
+    <div class="bg-slate-50 border border-slate-200 rounded-md p-3"><div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Last week</div><div class="text-sm font-semibold text-slate-800 mt-1">${state.endDates[state.totalWeeks - 1] || state.weeks[state.totalWeeks - 1]}</div></div>
+  `;
+  info.classList.remove('hidden');
+  document.getElementById('step1Status').classList.remove('hidden');
+  document.getElementById('step1Status').classList.add('inline-flex');
+
+  document.getElementById('navPeriod').textContent = `${state.startDates[0]} → ${state.endDates[state.totalWeeks - 1]}`;
+
+  const skuSel = document.getElementById('skuSelect');
+  skuSel.innerHTML = state.skus.map(s => `<option value="${s}">${s}</option>`).join('');
+
+  const slider = document.getElementById('trainLenSlider'), input = document.getElementById('trainLenInput');
+  slider.min = 104; slider.max = state.totalWeeks; slider.value = Math.max(104, state.totalWeeks - 52);
+  input.min = 104; input.max = state.totalWeeks; input.value = slider.value;
+  updateTrainNote();
+  document.getElementById('configSection').classList.remove('hidden');
+  setStep(2);
+}
+
+function updateTrainNote() {
+  const T = +document.getElementById('trainLenInput').value;
+  const left = state.totalWeeks - T;
+  const evalWeeks = Math.min(52, Math.max(0, left));
+  document.getElementById('trainLenNote').textContent = evalWeeks > 0 ? `· ${evalWeeks}-week back-test` : '· no back-test (use all data)';
+}
+
+function loadDemo() {
+  hideError();
+  const weeks = [], starts = [], ends = [];
+  const base = new Date(2022, 0, 3);
+  for (let i = 0; i < 156; i++) {
+    const s = new Date(base); s.setDate(s.getDate() + i * 7);
+    const e = new Date(s); e.setDate(e.getDate() + 6);
+    weeks.push(`W${i + 1}`);
+    starts.push(s.toISOString().slice(0, 10));
+    ends.push(e.toISOString().slice(0, 10));
+  }
+  const sku = (amp, trend, noise, baseLvl = 500) => {
+    const arr = [];
+    for (let i = 0; i < 156; i++) {
+      const seasonal = amp * Math.sin(2 * Math.PI * i / 52);
+      arr.push(Math.max(0, Math.round(baseLvl + trend * i + seasonal + randN() * noise)));
+    }
+    return arr;
+  };
+  const headers = ['Week', 'Start Date', 'End Date', 'SKU-ALPHA-Growing', 'SKU-BETA-Declining', 'SKU-GAMMA-Stable'];
+  const rows = [];
+  const sA = sku(200, 2.5, 60, 800);
+  const sB = sku(400, -0.5, 100, 1500);
+  const sC = sku(80, 1.2, 30, 300);
+  for (let i = 0; i < 156; i++) rows.push([weeks[i], starts[i], ends[i], String(sA[i]), String(sB[i]), String(sC[i])]);
+  ingestData(headers, rows);
+  document.getElementById('fileLabel').textContent = '✓ Demo data (156 weeks · 3 SKUs)';
+}
+
+/* =============================================================
+   Run forecast
+   ============================================================= */
+function runForecast() {
+  hideError();
+  const sku = document.getElementById('skuSelect').value;
+  const T = +document.getElementById('trainLenInput').value;
+  if (T < 104) { showError('Training length must be ≥104 weeks.'); return; }
+  if (T > state.totalWeeks) { showError('Training length exceeds available data.'); return; }
+  const fullSeries = state.skuData[sku];
+  const train = fullSeries.slice(0, T);
+  const actualOOS = fullSeries.slice(T, Math.min(T + 52, state.totalWeeks));
+  const HORIZON = 52;
+
+  // Compute forecast start date
+  const lastStartStr = state.startDates[T - 1];
+  const lastStart = new Date(lastStartStr);
+  const forecastDates = [];
+  for (let h = 1; h <= HORIZON; h++) {
+    const d = new Date(lastStart); d.setDate(d.getDate() + h * 7);
+    forecastDates.push(d);
+  }
+
+  const models = [];
+  try {
+    if (document.getElementById('mBaseline').checked) {
+      const mult = +document.getElementById('pBaselineMult').value || 1;
+      const r = baselineModel(train, HORIZON, mult);
+      models.push({ key: 'Baseline', label: `Baseline`, color: '#94a3b8', darkColor: '#475569', ...r });
+    }
+    if (document.getElementById('mAutoETS').checked) {
+      const r = autoETSModel(train, HORIZON);
+      models.push({ key: 'AutoETS', label: `AutoETS`, color: '#60a5fa', darkColor: '#1d4ed8', ...r });
+    }
+    if (document.getElementById('mProphet').checked) {
+      const r = prophetModel(train, HORIZON, +document.getElementById('pProphetCp').value || 15, +document.getElementById('pProphetK').value || 10, +document.getElementById('pProphetTau').value || 0.5);
+      models.push({ key: 'Prophet', label: `Prophet`, color: '#a78bfa', darkColor: '#6d28d9', ...r });
+    }
+    if (document.getElementById('mBSTS').checked) {
+      const r = bstsModel(train, HORIZON, +document.getElementById('pBstsK').value || 3, +document.getElementById('pBstsLvl').value || 0.02, +document.getElementById('pBstsSlp').value || 0.002);
+      models.push({ key: 'BSTS', label: `BSTS`, color: '#34d399', darkColor: '#047857', ...r });
+    }
+  } catch (err) { showError('Forecast error: ' + err.message); return; }
+  if (models.length === 0) { showError('Select at least one model.'); return; }
+
+  // Eval + compute per-horizon quantiles for fan chart
+  models.forEach(m => {
+    m.eval = actualOOS.length > 0 ? evaluateModel(actualOOS, m.mean, m.samples) : null;
+    const H = m.mean.length;
+    const q = { q025: [], q10: [], q25: [], q50: [], q75: [], q90: [], q975: [] };
+    for (let h = 0; h < H; h++) {
+      const col = m.samples.map(r => r[h]).sort((a, b) => a - b);
+      q.q025.push(quantile(col, 0.025));
+      q.q10.push(quantile(col, 0.10));
+      q.q25.push(quantile(col, 0.25));
+      q.q50.push(quantile(col, 0.50));
+      q.q75.push(quantile(col, 0.75));
+      q.q90.push(quantile(col, 0.90));
+      q.q975.push(quantile(col, 0.975));
+    }
+    m.q = q;
+    // annual totals per sample path
+    m.annualTotals = m.samples.map(p => p.reduce((s, v) => s + v, 0)).sort((a, b) => a - b);
+  });
+
+  // Pick recommended model
+  let recommended;
+  if (actualOOS.length > 0) {
+    recommended = models.reduce((best, m) => (!best || m.eval.crps < best.eval.crps) ? m : best, null);
+    recommended.reason = 'lowest back-test forecast error (CRPS)';
+  } else {
+    // Prefer non-baseline, ensemble-closest
+    const candidates = models.filter(m => m.key !== 'Baseline');
+    recommended = candidates.length > 0 ? candidates[candidates.length - 1] : models[0];
+    recommended.reason = 'most sophisticated probabilistic model (no back-test available)';
+  }
+
+  lastResults = { sku, T, train, fullSeries, actualOOS, models, recommended, forecastDates, lastStart };
+
+  const fanSel = document.getElementById('fanModelSelect');
+  fanSel.innerHTML = models.map(m => `<option value="${m.key}" ${m.key === recommended.key ? 'selected' : ''}>${m.label}${m.key === recommended.key ? ' ★' : ''}</option>`).join('');
+
+  document.getElementById('resultsSection').classList.remove('hidden');
+  document.getElementById('skuBadge').textContent = sku;
+  setStep(3);
+
+  renderExecutiveSummary(lastResults);
+  renderForecastChart(lastResults);
+  renderMonthlyChart(lastResults);
+  renderAnnualDistribution(lastResults);
+  updateServiceLevel();
+  renderScorecard(lastResults);
+  renderInsights(lastResults);
+  document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+}
+
+/* =============================================================
+   Executive summary
+   ============================================================= */
+function renderExecutiveSummary(res) {
+  const rec = res.recommended;
+  const H = rec.mean.length;
+  const totalMean = rec.mean.reduce((s, v) => s + v, 0);
+  const totals = rec.annualTotals;
+  const totalLow = quantile(totals, 0.1), totalHigh = quantile(totals, 0.9);
+  const priorTotal = res.train.slice(-52).reduce((s, v) => s + v, 0);
+  const yoyPct = priorTotal > 0 ? ((totalMean - priorTotal) / priorTotal) * 100 : 0;
+  let peakIdx = 0; for (let i = 1; i < H; i++) if (rec.mean[i] > rec.mean[peakIdx]) peakIdx = i;
+  const peakDate = res.forecastDates[peakIdx];
+  const peakVal = rec.mean[peakIdx];
+  const peakCol = rec.samples.map(r => r[peakIdx]).sort((a, b) => a - b);
+  const peakLow = quantile(peakCol, 0.1), peakHigh = quantile(peakCol, 0.9);
+
+  document.getElementById('kpiAnnual').textContent = fmtInt(totalMean) + ' units';
+  document.getElementById('kpiAnnualRange').textContent = `80% range: ${fmtInt(totalLow)} – ${fmtInt(totalHigh)}`;
+  document.getElementById('kpiPeak').textContent = fmtInt(peakVal);
+  document.getElementById('kpiPeakDate').textContent = peakDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const yoyEl = document.getElementById('kpiYoy');
+  yoyEl.textContent = fmtPct(yoyPct);
+  yoyEl.className = 'text-2xl font-bold num mt-1 ' + (yoyPct >= 3 ? 'text-emerald-300' : yoyPct <= -3 ? 'text-rose-300' : 'text-white');
+  document.getElementById('kpiYoyNote').textContent = yoyPct >= 0 ? 'growth expected' : 'contraction expected';
+  document.getElementById('kpiModel').textContent = rec.label;
+  const baseline = res.models.find(m => m.key === 'Baseline');
+  let mNote = rec.reason;
+  if (baseline && rec.key !== 'Baseline' && rec.eval && baseline.eval) {
+    const improvement = ((baseline.eval.crps - rec.eval.crps) / baseline.eval.crps) * 100;
+    mNote = `${improvement.toFixed(0)}% more accurate than baseline`;
+  }
+  document.getElementById('kpiModelNote').textContent = mNote;
+
+  // Executive text
+  const trendText = Math.abs(yoyPct) < 3 ? 'stable' : (yoyPct > 0 ? 'growth' : 'decline');
+  const confidence = rec.eval ? (rec.eval.mape < 10 ? 'high' : rec.eval.mape < 20 ? 'moderate' : 'limited') : 'moderate';
+  const peakDateStr = peakDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
+  document.getElementById('execSummaryText').innerHTML = `
+    Over the next 52 weeks we expect approximately <strong class="text-white">${fmtInt(totalMean)} units</strong> of ${res.sku},
+    with peak demand landing near <strong class="text-white">${peakDateStr}</strong>.
+    The outlook shows <strong class="text-white">${trendText}</strong> relative to the prior year (${fmtPct(yoyPct)}).
+    Forecast confidence is <strong class="text-white">${confidence}</strong>, using the
+    <strong class="text-white">${rec.label}</strong> model.
+  `;
+}
+
+/* =============================================================
+   Forecast chart (fan chart)
+   ============================================================= */
+function renderForecastChart(res) {
+  const ctx = document.getElementById('forecastChart');
+  if (charts.forecast) charts.forecast.destroy();
+
+  const T = res.T, H = 52;
+  const totalWeeks = T + H;
+  const labels = [];
+  for (let i = 0; i < totalWeeks; i++) {
+    if (i < state.totalWeeks) labels.push(state.startDates[i] || state.weeks[i]);
+    else {
+      const d = new Date(res.lastStart); d.setDate(d.getDate() + (i - T + 1) * 7);
+      labels.push(d.toISOString().slice(0, 10));
+    }
+  }
+
+  const fanKey = document.getElementById('fanModelSelect').value;
+  const fanModel = res.models.find(m => m.key === fanKey) || res.recommended;
+  const q = fanModel.q;
+
+  const pad = (arr) => { const r = Array(totalWeeks).fill(null); for (let h = 0; h < H; h++) r[T + h] = arr[h]; r[T - 1] = res.train[T - 1]; return r; };
+  const actualArr = []; for (let i = 0; i < totalWeeks; i++) actualArr.push(i < state.totalWeeks ? res.fullSeries[i] : null);
+
+  const datasets = [];
+
+  // Fan bands (stacked via fill: '-1')
+  datasets.push({ label: '95% lower', data: pad(q.q025), borderColor: 'transparent', pointRadius: 0, fill: false, tension: 0.2, order: 10 });
+  datasets.push({ label: '95% band', data: pad(q.q975), backgroundColor: 'rgba(129,140,248,0.15)', borderColor: 'transparent', pointRadius: 0, fill: '-1', tension: 0.2, order: 9 });
+
+  datasets.push({ label: '80% lower', data: pad(q.q10), borderColor: 'transparent', pointRadius: 0, fill: false, tension: 0.2, order: 8 });
+  datasets.push({ label: '80% band', data: pad(q.q90), backgroundColor: 'rgba(129,140,248,0.25)', borderColor: 'transparent', pointRadius: 0, fill: '-1', tension: 0.2, order: 7 });
+
+  datasets.push({ label: '50% lower', data: pad(q.q25), borderColor: 'transparent', pointRadius: 0, fill: false, tension: 0.2, order: 6 });
+  datasets.push({ label: '50% band', data: pad(q.q75), backgroundColor: 'rgba(129,140,248,0.4)', borderColor: 'transparent', pointRadius: 0, fill: '-1', tension: 0.2, order: 5 });
+
+  // Forecast median
+  datasets.push({ label: `${fanModel.label} forecast`, data: pad(q.q50), borderColor: '#4338ca', backgroundColor: '#4338ca', borderWidth: 2.5, pointRadius: 0, fill: false, tension: 0.2, order: 2 });
+
+  // Optional other models overlay
+  if (document.getElementById('showOthers').checked) {
+    res.models.filter(m => m.key !== fanModel.key).forEach(m => {
+      datasets.push({
+        label: m.label, data: pad(m.mean),
+        borderColor: m.darkColor, backgroundColor: 'transparent',
+        borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0, fill: false, tension: 0.2, order: 3
+      });
+    });
+  }
+
+  // Historical actuals
+  datasets.push({ label: 'Historical actuals', data: actualArr, borderColor: '#334155', backgroundColor: '#334155', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.1, order: 1 });
+
+  charts.forecast = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: {
+            color: '#475569', font: { size: 11, family: 'Inter' },
+            filter: item => !item.text.includes(' lower') && !item.text.includes(' band')
+          },
+          position: 'top', align: 'end'
+        },
+        tooltip: {
+          backgroundColor: '#1e293b', titleColor: '#fff', bodyColor: '#e2e8f0',
+          callbacks: { label: (ctx) => { if (ctx.dataset.label.includes(' lower') || ctx.dataset.label.includes(' band')) return null; return `${ctx.dataset.label}: ${fmtInt(ctx.parsed.y)}`; } }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#64748b', maxRotation: 0, autoSkip: true, maxTicksLimit: 10, font: { size: 10, family: 'Inter' } }, grid: { color: '#f1f5f9' } },
+        y: { beginAtZero: true, ticks: { color: '#64748b', font: { size: 10, family: 'Inter' } }, grid: { color: '#f1f5f9' }, title: { display: true, text: 'Units per week', color: '#475569', font: { size: 11, weight: '600', family: 'Inter' } } }
+      }
+    },
+    plugins: [{
+      id: 'splitLine',
+      afterDraw: (chart) => {
+        const { ctx: c, chartArea: ca, scales } = chart;
+        const x = scales.x.getPixelForValue(T - 0.5);
+        if (x >= ca.left && x <= ca.right) {
+          c.save();
+          c.strokeStyle = '#64748b'; c.setLineDash([3, 3]); c.lineWidth = 1;
+          c.beginPath(); c.moveTo(x, ca.top); c.lineTo(x, ca.bottom); c.stroke();
+          c.setLineDash([]);
+          c.fillStyle = '#ffffff'; c.fillRect(x + 2, ca.top + 2, 62, 16);
+          c.strokeStyle = '#cbd5e1'; c.strokeRect(x + 2, ca.top + 2, 62, 16);
+          c.fillStyle = '#334155';
+          c.font = '600 10px Inter'; c.fillText('Forecast →', x + 8, ca.top + 13);
+          c.restore();
+        }
+      }
+    }]
+  });
+}
+
+/* =============================================================
+   Monthly aggregation chart
+   ============================================================= */
+function renderMonthlyChart(res) {
+  const ctx = document.getElementById('monthChart');
+  if (charts.month) charts.month.destroy();
+  const rec = res.recommended;
+  const H = rec.mean.length;
+  // Bucket by calendar month
+  const buckets = new Map();
+  for (let h = 0; h < H; h++) {
+    const d = res.forecastDates[h];
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (!buckets.has(key)) buckets.set(key, { label: d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' }), indices: [] });
+    buckets.get(key).indices.push(h);
+  }
+  const labels = [], means = [], lowErr = [], highErr = [];
+  for (const [, v] of buckets) {
+    labels.push(v.label);
+    // sum sample paths across this bucket
+    const totals = rec.samples.map(p => v.indices.reduce((s, i) => s + p[i], 0)).sort((a, b) => a - b);
+    const mn = totals.reduce((s, x) => s + x, 0) / totals.length;
+    const lo = quantile(totals, 0.1), hi = quantile(totals, 0.9);
+    means.push(mn); lowErr.push(mn - lo); highErr.push(hi - mn);
+  }
+
+  charts.month = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Forecast',
+        data: means,
+        backgroundColor: '#818cf8',
+        borderColor: '#4338ca',
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e293b', titleColor: '#fff', bodyColor: '#e2e8f0',
+          callbacks: {
+            label: (ctx) => {
+              const mn = means[ctx.dataIndex], lo = mn - lowErr[ctx.dataIndex], hi = mn + highErr[ctx.dataIndex];
+              return [`Expected: ${fmtInt(mn)}`, `80% range: ${fmtInt(lo)} – ${fmtInt(hi)}`];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#64748b', font: { size: 10, family: 'Inter' } }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { color: '#64748b', font: { size: 10, family: 'Inter' } }, grid: { color: '#f1f5f9' } }
+      }
+    },
+    plugins: [{
+      id: 'errorBars',
+      afterDatasetsDraw: (chart) => {
+        const { ctx: c, chartArea: ca, scales } = chart;
+        const meta = chart.getDatasetMeta(0);
+        c.save(); c.strokeStyle = '#1e293b'; c.lineWidth = 1.5;
+        meta.data.forEach((bar, i) => {
+          const x = bar.x;
+          const yMean = scales.y.getPixelForValue(means[i]);
+          const yLow = scales.y.getPixelForValue(means[i] - lowErr[i]);
+          const yHigh = scales.y.getPixelForValue(means[i] + highErr[i]);
+          c.beginPath(); c.moveTo(x, yHigh); c.lineTo(x, yLow); c.stroke();
+          c.beginPath(); c.moveTo(x - 4, yHigh); c.lineTo(x + 4, yHigh); c.stroke();
+          c.beginPath(); c.moveTo(x - 4, yLow); c.lineTo(x + 4, yLow); c.stroke();
+        });
+        c.restore();
+      }
+    }]
+  });
+}
+
+/* =============================================================
+   Annual distribution (histogram)
+   ============================================================= */
+function renderAnnualDistribution(res) {
+  const ctx = document.getElementById('distChart');
+  if (charts.dist) charts.dist.destroy();
+  const totals = res.recommended.annualTotals;
+  const nBins = 20;
+  const min = totals[0], max = totals[totals.length - 1];
+  const binW = (max - min) / nBins;
+  const bins = Array(nBins).fill(0);
+  const labels = [];
+  for (let i = 0; i < nBins; i++) labels.push(fmtInt(min + binW * (i + 0.5)));
+  for (const v of totals) { let idx = Math.floor((v - min) / binW); if (idx >= nBins) idx = nBins - 1; if (idx < 0) idx = 0; bins[idx]++; }
+  const med = quantile(totals, 0.5), p10 = quantile(totals, 0.1), p90 = quantile(totals, 0.9);
+  document.getElementById('annualLow').textContent = fmtInt(p10);
+  document.getElementById('annualMed').textContent = fmtInt(med);
+  document.getElementById('annualHigh').textContent = fmtInt(p90);
+
+  const colors = bins.map((_, i) => {
+    const v = min + binW * (i + 0.5);
+    if (v < p10) return '#fda4af';
+    if (v > p90) return '#6ee7b7';
+    return '#c7d2fe';
+  });
+
+  charts.dist = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Simulations', data: bins, backgroundColor: colors, borderWidth: 0 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e293b', titleColor: '#fff', bodyColor: '#e2e8f0',
+          callbacks: { title: (items) => `Annual total ≈ ${items[0].label}`, label: (ctx) => `${ctx.parsed.y} simulated paths` }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#64748b', font: { size: 9, family: 'Inter' }, maxTicksLimit: 6 }, grid: { display: false }, title: { display: true, text: 'Annual demand (units)', color: '#475569', font: { size: 10 } } },
+        y: { ticks: { color: '#64748b', font: { size: 9, family: 'Inter' } }, grid: { color: '#f1f5f9' }, title: { display: true, text: 'Simulation count', color: '#475569', font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+/* =============================================================
+   Service level planner
+   ============================================================= */
+function updateServiceLevel() {
+  if (!lastResults) return;
+  const sl = +document.getElementById('slSlider').value;
+  const lt = +document.getElementById('ltSlider').value;
+  document.getElementById('slValue').textContent = sl + '%';
+  document.getElementById('ltValue').textContent = lt + (lt === 1 ? ' week' : ' weeks');
+  document.getElementById('slInline').textContent = sl + '%';
+  document.getElementById('ltInline').textContent = lt + (lt === 1 ? ' week' : ' weeks');
+
+  const rec = lastResults.recommended;
+  // Sum first `lt` weeks of each sample path → distribution
+  const ltTotals = rec.samples.map(p => { let s = 0; for (let i = 0; i < lt; i++) s += p[i]; return s; }).sort((a, b) => a - b);
+  const expected = quantile(ltTotals, 0.5);
+  const reorder = quantile(ltTotals, sl / 100);
+  const safety = reorder - expected;
+  const reorder99 = quantile(ltTotals, 0.99);
+  const reorder95 = quantile(ltTotals, 0.95);
+  const reorder96 = quantile(ltTotals, 0.96);
+
+  document.getElementById('slExpected').textContent = fmtInt(expected);
+  document.getElementById('slSafety').textContent = '+' + fmtInt(safety);
+  document.getElementById('slReorder').textContent = fmtInt(reorder);
+  document.getElementById('sl99').textContent = fmtInt(reorder99) + ' units';
+  document.getElementById('slMarginal').textContent = fmtInt(Math.max(0, reorder96 - reorder95)) + ' units';
+}
+
+/* =============================================================
+   Scorecard
+   ============================================================= */
+function renderScorecard(res) {
+  const body = document.getElementById('scorecardBody');
+  const sub = document.getElementById('scorecardSub');
+  if (res.actualOOS.length === 0) {
+    sub.textContent = 'No hold-out data — reduce training window to enable back-testing';
+    body.innerHTML = `<div class="text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
+      ℹ️ All uploaded data is inside the training window. Reduce the training window in Step 2 to produce a scorecard.
+    </div>`;
+    return;
+  }
+  sub.textContent = `Back-tested on ${res.actualOOS.length} hold-out weeks · lower numbers = better`;
+
+  let bestCrps = Infinity, bestMape = Infinity, bestRmse = Infinity;
+  res.models.forEach(m => {
+    if (m.eval.crps < bestCrps) bestCrps = m.eval.crps;
+    if (!isNaN(m.eval.mape) && m.eval.mape < bestMape) bestMape = m.eval.mape;
+    if (m.eval.rmse < bestRmse) bestRmse = m.eval.rmse;
+  });
+  const hi = (v, best, fmt) => Math.abs(v - best) < 1e-6 ? `<span class="font-bold text-emerald-700">${fmt(v)}</span>` : fmt(v);
+  const baseline = res.models.find(m => m.key === 'Baseline');
+
+  let rows = '';
+  res.models.forEach(m => {
+    const e = m.eval;
+    const improvement = baseline && m.key !== 'Baseline' ? ((baseline.eval.crps - e.crps) / baseline.eval.crps) * 100 : null;
+    const isRec = m.key === res.recommended.key;
+    const impCell = improvement === null ? '—' : `<span class="${improvement > 0 ? 'text-emerald-700 font-semibold' : 'text-rose-600 font-semibold'}">${fmtPct(improvement, 0)}</span>`;
+    const badge = isRec ? '<span class="ml-2 inline-flex items-center gap-1 text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-semibold">★ RECOMMENDED</span>' : '';
+    rows += `<tr class="border-b border-slate-100 ${isRec ? 'bg-indigo-50/40' : ''}">
+      <td class="py-3 pr-3"><span class="inline-block w-2 h-2 rounded-full mr-1.5" style="background:${m.darkColor}"></span><span class="font-medium text-slate-800">${m.label}</span>${badge}</td>
+      <td class="py-3 pr-3 num text-right">${hi(e.rmse, bestRmse, v => fmtInt(v))}</td>
+      <td class="py-3 pr-3 num text-right">${hi(e.mape, bestMape, v => isNaN(v) ? '—' : v.toFixed(1) + '%')}</td>
+      <td class="py-3 pr-3 num text-right">${hi(e.crps, bestCrps, v => v.toFixed(1))}</td>
+      <td class="py-3 pr-3 num text-right">${impCell}</td>
+    </tr>`;
+  });
+
+  body.innerHTML = `
+    <div class="overflow-x-auto scroll-fade">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-xs text-slate-500 uppercase tracking-wide border-b-2 border-slate-200">
+            <th class="py-2 pr-3 text-left font-semibold">Model</th>
+            <th class="py-2 pr-3 text-right font-semibold" title="Typical weekly error in units">RMSE (units)</th>
+            <th class="py-2 pr-3 text-right font-semibold" title="Average % error per week">MAPE</th>
+            <th class="py-2 pr-3 text-right font-semibold" title="Overall probabilistic skill — lower is better">CRPS score</th>
+            <th class="py-2 pr-3 text-right font-semibold">vs. baseline</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="mt-4 grid sm:grid-cols-3 gap-3 text-xs">
+      <div class="bg-slate-50 border border-slate-200 rounded-md p-3"><strong class="text-slate-700">RMSE</strong> — typical weekly miss in units. Used for capacity & staffing decisions.</div>
+      <div class="bg-slate-50 border border-slate-200 rounded-md p-3"><strong class="text-slate-700">MAPE</strong> — average percentage error. Intuitive; widely used in S&OP reviews.</div>
+      <div class="bg-slate-50 border border-slate-200 rounded-md p-3"><strong class="text-slate-700">CRPS</strong> — measures accuracy of the <em>full uncertainty range</em>, not just the point forecast. The gold-standard metric for safety-stock planning.</div>
+    </div>
+  `;
+}
+
+/* =============================================================
+   Managerial insights
+   ============================================================= */
+function renderInsights(res) {
+  const rec = res.recommended;
+  const H = rec.mean.length;
+  const totalMean = rec.mean.reduce((s, v) => s + v, 0);
+  const priorTotal = res.train.slice(-52).reduce((s, v) => s + v, 0);
+  const yoyPct = priorTotal > 0 ? ((totalMean - priorTotal) / priorTotal) * 100 : 0;
+  const totals = rec.annualTotals;
+  const relRange = ((quantile(totals, 0.9) - quantile(totals, 0.1)) / quantile(totals, 0.5)) * 100;
+
+  // Peak week & quarter of year
+  let peakIdx = 0; for (let i = 1; i < H; i++) if (rec.mean[i] > rec.mean[peakIdx]) peakIdx = i;
+  let troughIdx = 0; for (let i = 1; i < H; i++) if (rec.mean[i] < rec.mean[troughIdx]) troughIdx = i;
+  const peakDate = res.forecastDates[peakIdx];
+  const troughDate = res.forecastDates[troughIdx];
+
+  // Quarter-by-quarter
+  const qs = [0, 0, 0, 0];
+  for (let h = 0; h < H; h++) qs[Math.min(3, Math.floor(h / 13))] += rec.mean[h];
+  const maxQ = qs.indexOf(Math.max(...qs)), minQ = qs.indexOf(Math.min(...qs));
+
+  const baseline = res.models.find(m => m.key === 'Baseline');
+  let baselineGap = null;
+  if (baseline && rec.key !== 'Baseline') {
+    const baseSum = baseline.mean.reduce((s, v) => s + v, 0);
+    baselineGap = ((totalMean - baseSum) / baseSum) * 100;
+  }
+
+  const items = [];
+
+  items.push({
+    icon: '📈',
+    color: Math.abs(yoyPct) < 3 ? 'slate' : (yoyPct > 0 ? 'emerald' : 'rose'),
+    title: `${Math.abs(yoyPct) < 3 ? 'Flat' : (yoyPct > 0 ? 'Growing' : 'Declining')} demand trend`,
+    text: `Annual demand is projected at <strong>${fmtInt(totalMean)} units</strong>, ${fmtPct(yoyPct)} versus the prior 52 weeks. Share this with S&OP to align commercial and supply plans.`
+  });
+
+  items.push({
+    icon: '🎯',
+    color: 'indigo',
+    title: `Peak ordering window: ${peakDate.toLocaleDateString(undefined, { month: 'long' })}`,
+    text: `Demand peaks in the week of <strong>${peakDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</strong> at approximately <strong>${fmtInt(rec.mean[peakIdx])} units/week</strong>. Build stock during the prior 4-6 weeks and align promotions accordingly.`
+  });
+
+  items.push({
+    icon: '💧',
+    color: 'slate',
+    title: `Lowest demand: ${troughDate.toLocaleDateString(undefined, { month: 'long' })}`,
+    text: `The quietest week is expected around <strong>${troughDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</strong> (~<strong>${fmtInt(rec.mean[troughIdx])} units</strong>). Use this window for maintenance, trade-out, or clearance activity.`
+  });
+
+  items.push({
+    icon: '⚖️',
+    color: relRange > 30 ? 'amber' : 'emerald',
+    title: `Demand volatility: ${relRange > 30 ? 'High' : relRange > 15 ? 'Moderate' : 'Low'}`,
+    text: `The 80% likely range spans ±${(relRange / 2).toFixed(0)}% of expected annual volume. ${relRange > 30 ? 'Prefer flexible supply contracts and avoid large single commitments.' : relRange > 15 ? 'Standard safety-stock policies are appropriate.' : 'You can commit to tighter volume forecasts with vendors.'}`
+  });
+
+  if (baselineGap !== null && Math.abs(baselineGap) > 3) {
+    items.push({
+      icon: '⚠️',
+      color: 'amber',
+      title: `Your current baseline may be ${baselineGap > 0 ? 'under' : 'over'}-forecasting`,
+      text: `The recommended <strong>${rec.label}</strong> model projects <strong>${fmtPct(baselineGap)}</strong> more demand than your baseline approach (last year × multiplier). Review growth assumptions with commercial teams.`
+    });
+  }
+
+  const qNames = ['Q1 (wk 1-13)', 'Q2 (wk 14-26)', 'Q3 (wk 27-39)', 'Q4 (wk 40-52)'];
+  items.push({
+    icon: '📅',
+    color: 'indigo',
+    title: `Largest quarter: ${qNames[maxQ]}`,
+    text: `${qNames[maxQ]} represents <strong>${((qs[maxQ] / totalMean) * 100).toFixed(0)}%</strong> of annual demand (${fmtInt(qs[maxQ])} units), while ${qNames[minQ]} is lowest at ${((qs[minQ] / totalMean) * 100).toFixed(0)}%. Phase purchase orders and working capital accordingly.`
+  });
+
+  if (rec.eval) {
+    const confLabel = rec.eval.mape < 10 ? 'High' : rec.eval.mape < 20 ? 'Moderate' : 'Limited';
+    const confColor = rec.eval.mape < 10 ? 'emerald' : rec.eval.mape < 20 ? 'amber' : 'rose';
+    items.push({
+      icon: '🔬',
+      color: confColor,
+      title: `${confLabel} forecast confidence (back-test MAPE ${rec.eval.mape.toFixed(1)}%)`,
+      text: `The ${rec.label} model's typical weekly error is ±${fmtInt(rec.eval.rmse)} units (${rec.eval.mape.toFixed(1)}%). ${rec.eval.mape < 15 ? 'Safe to use for automated replenishment.' : rec.eval.mape < 25 ? 'Use with human review; consider weekly refreshes.' : 'Treat as directional — pair with commercial intelligence before committing to stock.'}`
+    });
+  }
+
+  const colorMap = {
+    slate: 'bg-slate-50 border-slate-200 text-slate-800',
+    indigo: 'bg-indigo-50 border-indigo-200 text-indigo-900',
+    emerald: 'bg-emerald-50 border-emerald-200 text-emerald-900',
+    amber: 'bg-amber-50 border-amber-200 text-amber-900',
+    rose: 'bg-rose-50 border-rose-200 text-rose-900',
+  };
+
+  document.getElementById('insightsList').innerHTML = items.map(it => `
+    <li class="flex items-start gap-3 border ${colorMap[it.color]} rounded-lg p-3">
+      <span class="text-xl leading-none">${it.icon}</span>
+      <div class="flex-1">
+        <div class="font-semibold text-sm">${it.title}</div>
+        <div class="text-sm mt-0.5 leading-relaxed">${it.text}</div>
+      </div>
+    </li>
+  `).join('');
+}
+
+/* =============================================================
+   Reset
+   ============================================================= */
+function resetAll() {
+  document.getElementById('csvInput').value = '';
+  document.getElementById('fileLabel').textContent = 'Click to upload CSV file';
+  document.getElementById('dataInfo').classList.add('hidden');
+  document.getElementById('step1Status').classList.add('hidden');
+  document.getElementById('configSection').classList.add('hidden');
+  document.getElementById('resultsSection').classList.add('hidden');
+  document.getElementById('navPeriod').textContent = '— — —';
+  hideError();
+  Object.values(charts).forEach(c => c && c.destroy());
+  Object.keys(charts).forEach(k => delete charts[k]);
+  lastResults = null;
+  setStep(1);
+}
+</script>
+
+</body>
+</html>
